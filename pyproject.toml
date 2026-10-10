@@ -1,0 +1,17 @@
+[project]
+name = "biodata-copilot"
+version = "0.1.0"
+description = "A cloud-based biomedical data platform with grounded AI explanations."
+readme = "README.md"
+authors = [
+    { name = "Haneefa Tasneem Shaik", email = "haneefa.tasneem.shaik@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+biodata-copilot = "biodata_copilot:main"
+
+[build-system]
+requires = ["uv_build>=0.12.7,<0.13.0"]
+build-backend = "uv_build"
