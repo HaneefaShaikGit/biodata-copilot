@@ -138,4 +138,65 @@ Initially use:
 
 ### Next step
 Retrieve actual clinical records from the selected study.
+
+### Patient–Sample Relationship Check
+
+The selected study returned:
+
+- 1,084 unique patients
+- 1,084 unique samples
+- 0 patients with multiple samples
+
+This means the observed relationship in this study is:
+
+`1 patient → 1 sample`
+
+This simplifies future joins between patient-level and sample-level clinical data.
+
+### Raw Clinical Data Profiling
+
+The patient-level clinical dataset contains:
+
+- 41,497 raw records
+- 1,084 unique patients
+- 40 unique clinical attributes
+- 0 duplicate patient-attribute pairs
+
+The sample-level clinical dataset contains:
+
+- 19,348 raw records
+- 1,084 unique samples
+- 18 unique clinical attributes
+- 0 duplicate sample-attribute pairs
+
+The lowest patient-level completeness was observed for:
+
+| Attribute | Completeness |
+|---|---:|
+| PRIMARY_LYMPH_NODE_PRESENTATION_ASSESSMENT | 66.42% |
+| NEW_TUMOR_EVENT_AFTER_INITIAL_TREATMENT | 81.64% |
+| ETHNICITY | 84.41% |
+| DFS_MONTHS | 86.81% |
+| DFS_STATUS | 86.90% |
+
+The sample-level dataset was generally more complete. Its lowest completeness values were:
+
+| Attribute | Completeness |
+|---|---:|
+| MSI_SCORE_MANTIS | 95.39% |
+| ANEUPLOIDY_SCORE | 96.03% |
+| MUTATION_COUNT | 98.34% |
+| TMB_NONSYNONYMOUS | 98.34% |
+| FRACTION_GENOME_ALTERED | 98.52% |
+
+### Interpretation
+
+Completeness here measures whether an attribute is present for an entity.
+
+It does not yet validate whether the actual value is biologically or logically correct.
+
+No duplicate entity-attribute pairs were found.
+
+This means the long-format clinical data is suitable for transformation into wider analytical tables.
+
 EOF

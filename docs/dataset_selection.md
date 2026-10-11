@@ -51,3 +51,32 @@ For the first version of BioData Copilot, the project will initially use:
 2. Mutation data
 
 Additional molecular profiles may be added later if required.
+
+## Final Candidate Comparison
+
+| Criterion | Lung MSK 2023 | Pancreas MSK 2024 | Breast TCGA PanCancer |
+|---|---|---|---|
+| Study ID | `luad_mskcc_2023_met_organotropism` | `pdac_msk_2024` | `brca_tcga_pan_can_atlas_2018` |
+| Sample size | 2,653 | 2,336 | ~1,084 |
+| Clinical attributes | 91 | 52 | Broad clinical set |
+| Survival data | Yes | Yes | Yes |
+| Stage data | Yes | Yes | Yes |
+| Treatment data | Very detailed | Good | Available |
+| Metastasis data | Very detailed | Limited | General |
+| Mutation data | Yes | Yes | Yes |
+| Copy-number data | Yes | Yes | Yes |
+| Structural variants | Yes | Yes | Yes |
+| mRNA expression | Not observed | Not observed | Yes |
+| Protein data | Not observed | Not observed | Yes |
+| Methylation data | Not observed | Not observed | Yes |
+| Main study focus | Metastatic organotropism | KRAS biology | Broad breast-cancer molecular/clinical analysis |
+| Main limitation for V1 | Too specialised | Too KRAS-focused | More complex, but broad |
+| Decision | Not selected | Not selected | **Selected** |
+
+### Final Reasoning
+
+The lung and pancreatic studies contain strong clinical and genomic data, but both are designed around relatively specialised research questions.
+
+The TCGA Breast PanCancer Atlas cohort was selected because it provides a broader combination of clinical, survival, subtype, mutation and additional molecular information. This makes it more suitable for a general-purpose biomedical data exploration platform.
+
+The V1 project will still limit itself to clinical and mutation data to keep the scope manageable.

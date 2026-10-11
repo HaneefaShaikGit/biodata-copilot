@@ -48,6 +48,8 @@ flowchart TD
 | BigQuery | ⏳ |
 | OpenAI | ⏳ |
 | UI | ⏳ |
+| Raw clinical-data profiling | ✅ |
+| Clinical-data transformation | ⏳ |
 
 ---
 
@@ -148,4 +150,42 @@ Then determine:
 3. how many records exist,
 4. how attributes are represented,
 5. how raw data should be stored.
+
+# Current Next Step
+
+Transform the patient-level and sample-level clinical data from long format into wide analytical tables.
+
+Example:
+
+Long format:
+
+patientId | clinicalAttributeId | value
+
+Wide format:
+
+patientId | AGE | SEX | OS_MONTHS | OS_STATUS | ...
+
+
+### Finding 6
+
+The selected study contains 1,084 unique patients and 1,084 unique samples.
+
+No patient had more than one sample in the sample-level clinical dataset.
+
+Observed relationship:
+
+`1 patient → 1 sample`
+
+This will simplify future joins between patient and sample data.
+
+### Finding 7
+
+The raw clinical data contains no duplicate entity-attribute pairs.
+
+Patient-level attributes have more variable completeness than sample-level attributes.
+
+Sample-level clinical attributes are generally highly complete.
+
+The raw long-format data is ready for transformation.
+
 EOF
