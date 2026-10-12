@@ -9,6 +9,12 @@ cat > docs/scripts_overview.md <<'EOF'
 | `inspect_study.py` | Inspect one study in detail | Clinical + molecular fields | Exploration |
 | `check_patient_sample_relationship.py` | Check patient-to-sample relationship | 1 patient → 1 sample | Exploration |
 | `profile_clinical_data.py` | Profile raw clinical data quality | Completeness + duplicate checks | Validation |
+| `transform_patient_data.py` | Transform patient data to wide format | Wide patient table | Transformation |
+| `transform_sample_data.py` | Transform sample data to wide format | Wide sample table | Transformation |
+| `validate_wide_tables.py` | Validate transformed tables | Duplicate/link checks | Validation |
+| `inspect_data_types.py` | Inspect inferred data types | Type summary | Validation |
+| `inspect_values.py` | Inspect distributions and outliers | Value profile | Validation |
+| `create_analytics_tables.py` | Create V1 analytics-ready tables | Patient + sample analytics CSVs | Transformation |
 
 ---
 
@@ -167,5 +173,96 @@ Sample:
 The raw clinical datasets are suitable for transformation.
 
 Patient-level completeness varies more than sample-level completeness.
+
+## `transform_patient_data.py`
+
+### Purpose
+Convert patient clinical data from long format to wide format.
+
+### Input
+`data/raw/patient_clinical_data.json`
+
+### Output
+`data/processed/patient_clinical_wide.csv`
+
+### Result
+- 1,084 rows
+- 42 columns
+
+---
+
+## `transform_sample_data.py`
+
+### Purpose
+Convert sample clinical data from long format to wide format.
+
+### Input
+`data/raw/sample_clinical_data.json`
+
+### Output
+`data/processed/sample_clinical_wide.csv`
+
+### Result
+- 1,084 rows
+- 21 columns
+
+---
+
+## `validate_wide_tables.py`
+
+### Purpose
+Validate that the pivot transformation did not create duplicate or missing entities.
+
+### Checks
+- row count
+- unique IDs
+- duplicate IDs
+- patient/sample consistency
+
+### Result
+All checks passed.
+
+---
+
+## `inspect_data_types.py`
+
+### Purpose
+Inspect pandas data types before changing any column types.
+
+### Result
+Most types were inferred correctly.
+
+---
+
+## `inspect_values.py`
+
+### Purpose
+Inspect category values, numeric distributions, and extreme values.
+
+### Important Finding
+High mutation-count outliers were also associated with high TMB values.
+
+They were retained.
+
+---
+
+## `create_analytics_tables.py`
+
+### Purpose
+Create smaller V1 analytics tables containing only relevant fields.
+
+### Outputs
+- `patient_analytics.csv`
+- `sample_analytics.csv`
+
+### Result
+
+Patient analytics:
+- 1,084 rows
+- 17 columns
+
+Sample analytics:
+- 1,084 rows
+- 12 columns
 
 EOF

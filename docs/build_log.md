@@ -199,4 +199,111 @@ No duplicate entity-attribute pairs were found.
 
 This means the long-format clinical data is suitable for transformation into wider analytical tables.
 
+## Day 3 — Clinical Data Transformation
+
+### Goal
+
+Convert raw long-format clinical data into structured and analytics-ready tables.
+
+### Patient Transformation
+
+Raw patient data:
+
+- 41,497 long-format records
+- 1,084 patients
+- 40 clinical attributes
+
+Transformed wide table:
+
+- 1,084 rows
+- 42 columns
+
+### Sample Transformation
+
+Raw sample data:
+
+- 19,348 long-format records
+- 1,084 samples
+- 18 clinical attributes
+
+Transformed wide table:
+
+- 1,084 rows
+- 21 columns
+
+### Validation Results
+
+Patient table:
+
+- 1,084 rows
+- 1,084 unique patients
+- 0 duplicate patient IDs
+
+Sample table:
+
+- 1,084 rows
+- 1,084 unique samples
+- 0 duplicate sample IDs
+
+Patient/sample relationship:
+
+- 0 patient IDs missing from sample table
+- 0 sample patient IDs missing from patient table
+
+### Data-Type Inspection
+
+Pandas correctly inferred most numeric and text fields.
+
+Examples:
+
+Numeric:
+- AGE
+- OS_MONTHS
+- DFS_MONTHS
+- MUTATION_COUNT
+- TMB_NONSYNONYMOUS
+
+Categorical/text:
+- SEX
+- RACE
+- SUBTYPE
+- OS_STATUS
+- SAMPLE_TYPE
+
+### Value Inspection
+
+Important observations:
+
+- AGE ranged from 26 to 90
+- OS_STATUS was complete
+- SUBTYPE contained missing values
+- RACE contained missing values
+- MUTATION_COUNT contained high outliers
+
+High mutation-count samples also had high TMB values.
+
+This suggests the extreme values are internally consistent and should not automatically be treated as errors.
+
+### Key Lesson
+
+An outlier is not automatically bad data.
+
+### Analytics Tables Created
+
+Patient analytics table:
+
+- 1,084 rows
+- 17 columns
+
+Sample analytics table:
+
+- 1,084 rows
+- 12 columns
+
+### Final Local Data Flow
+
+Raw JSON
+→ Wide Clinical Tables
+→ Validation
+→ Analytics-Ready Tables 
 EOF

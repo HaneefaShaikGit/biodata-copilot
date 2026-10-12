@@ -50,7 +50,13 @@ flowchart TD
 | UI | ⏳ |
 | Raw clinical-data profiling | ✅ |
 | Clinical-data transformation | ⏳ |
-
+| Clinical-data transformation | ✅ |
+| Wide-table validation | ✅ |
+| Value profiling | ✅ |
+| Analytics-table creation | ✅ |
+| Mutation-data ingestion | ⏳ |
+| GCS | ⏳ |
+| BigQuery | ⏳ |
 ---
 
 # Selected Dataset
@@ -116,6 +122,10 @@ flowchart TD
 4. Related cancer types may need to be grouped using hierarchy.
 5. Start with simple Python and refactor later.
 6. The LLM should not be the source of numerical truth.
+7. Validate transformations after reshaping data.
+8. Do not fill missing values without a reason.
+9. Do not delete outliers without evidence.
+10. Keep only V1-relevant columns in analytics tables.
 
 ---
 
@@ -165,6 +175,11 @@ Wide format:
 
 patientId | AGE | SEX | OS_MONTHS | OS_STATUS | ...
 
+# Current Next Step
+
+Begin mutation-data ingestion for the selected study.
+
+The goal is to retrieve actual gene-level mutation records and connect them to the existing sample/patient analytics tables.
 
 ### Finding 6
 
