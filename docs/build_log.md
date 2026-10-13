@@ -306,4 +306,96 @@ Raw JSON
 → Wide Clinical Tables
 → Validation
 → Analytics-Ready Tables 
+
+## Day 4 — Mutation Data Ingestion and Profiling
+
+### Goal
+
+Retrieve and understand gene-level mutation data for the selected study.
+
+### Mutation Profile
+
+Molecular profile:
+
+`brca_tcga_pan_can_atlas_2018_mutations`
+
+Mutation sample list:
+
+`brca_tcga_pan_can_atlas_2018_sequenced`
+
+### Important API Finding
+
+The normal GET mutation endpoint required an `entrezGeneId`, meaning it was designed for querying specific genes.
+
+To retrieve all mutations for the sequenced cohort, the POST fetch endpoint was used instead.
+
+### Raw Mutation Data
+
+The mutation API returned:
+
+- 84,226 mutation records
+- 1,009 samples with at least one mutation record
+- 1,009 patients with at least one mutation record
+- 16,488 unique genes represented
+
+Raw data was saved to:
+
+`data/raw/mutation_data.json`
+
+### Mutation Coverage Validation
+
+The mutation sample list contained:
+
+- 1,066 sequenced samples
+
+Mutation records were returned for:
+
+- 1,009 samples
+
+Therefore:
+
+- 57 sequenced samples had no returned mutation records
+
+This means:
+
+`sequenced sample ≠ sample with at least one mutation`
+
+### Most Common Mutation Types
+
+| Mutation Type | Records |
+|---|---:|
+| Missense Mutation | 64,473 |
+| Frame Shift Deletion | 9,171 |
+| Nonsense Mutation | 5,417 |
+| Splice Site | 1,970 |
+| Splice Region | 1,402 |
+| Frame Shift Insertion | 913 |
+| In Frame Deletion | 653 |
+
+### Most Frequently Mutated Genes by Patient
+
+| Gene | Patients |
+|---|---:|
+| TP53 | 347 |
+| PIK3CA | 347 |
+| TTN | 187 |
+| CDH1 | 130 |
+| GATA3 | 127 |
+| MUC16 | 109 |
+| KMT2C | 99 |
+| MAP3K1 | 89 |
+| PTEN | 58 |
+
+### Important Lesson
+
+Raw mutation-record counts are not the same as the number of patients carrying a mutation in a gene.
+
+A patient may have multiple mutation records for the same gene.
+
+Therefore, patient-level gene frequency was calculated using unique:
+
+`patientId + gene`
+
+pairs.
+
 EOF

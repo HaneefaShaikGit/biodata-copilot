@@ -15,6 +15,9 @@ cat > docs/scripts_overview.md <<'EOF'
 | `inspect_data_types.py` | Inspect inferred data types | Type summary | Validation |
 | `inspect_values.py` | Inspect distributions and outliers | Value profile | Validation |
 | `create_analytics_tables.py` | Create V1 analytics-ready tables | Patient + sample analytics CSVs | Transformation |
+| `fetch_mutation_data.py` | Retrieve mutation records | Raw mutation JSON | Ingestion |
+| `profile_mutation_data.py` | Profile mutation dataset | Mutation/gene summaries | Validation |
+| `validate_mutation_coverage.py` | Check sequenced vs mutated samples | Coverage comparison | Validation |
 
 ---
 
@@ -264,5 +267,86 @@ Patient analytics:
 Sample analytics:
 - 1,084 rows
 - 12 columns
+
+## `fetch_mutation_data.py`
+
+### Purpose
+
+Retrieve all detailed mutation records for samples with mutation sequencing data.
+
+### API
+
+POST:
+
+`/api/molecular-profiles/{molecularProfileId}/mutations/fetch`
+
+### Input
+
+Mutation molecular profile:
+
+`brca_tcga_pan_can_atlas_2018_mutations`
+
+Sample list:
+
+`brca_tcga_pan_can_atlas_2018_sequenced`
+
+### Output
+
+`data/raw/mutation_data.json`
+
+### Result
+
+84,226 mutation records were retrieved.
+
+---
+
+## `profile_mutation_data.py`
+
+### Purpose
+
+Profile the raw mutation dataset.
+
+### Checks
+
+- total mutation records
+- unique samples
+- unique patients
+- unique genes
+- mutation-type frequencies
+- most frequently mutated genes by patient
+
+### Result
+
+- 84,226 mutation records
+- 1,009 unique samples
+- 1,009 unique patients
+- 16,488 unique genes
+
+### Important Logic
+
+Gene frequency is calculated using unique:
+
+`patientId + gene`
+
+pairs rather than raw mutation-record counts.
+
+---
+
+## `validate_mutation_coverage.py`
+
+### Purpose
+
+Compare the mutation sequencing sample list with samples that actually have mutation records.
+
+### Result
+
+- Sequenced samples: 1,066
+- Samples with mutation records: 1,009
+- Sequenced samples with no mutation records: 57
+
+### Conclusion
+
+Being sequenced does not necessarily mean a sample has a called mutation.
+
 
 EOF

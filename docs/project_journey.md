@@ -57,6 +57,13 @@ flowchart TD
 | Mutation-data ingestion | ⏳ |
 | GCS | ⏳ |
 | BigQuery | ⏳ |
+| Mutation-data ingestion | ✅ |
+| Mutation-data profiling | ✅ |
+| Mutation coverage validation | ✅ |
+| GCS raw-data storage | ⏳ |
+| BigQuery | ⏳ |
+| OpenAI | ⏳ |
+| UI | ⏳ |
 ---
 
 # Selected Dataset
@@ -181,6 +188,12 @@ Begin mutation-data ingestion for the selected study.
 
 The goal is to retrieve actual gene-level mutation records and connect them to the existing sample/patient analytics tables.
 
+# Current Next Step
+
+Move the raw and processed project data into Google Cloud Storage.
+
+The next stage will introduce the cloud storage layer while preserving the same raw-data structure created locally.
+
 ### Finding 6
 
 The selected study contains 1,084 unique patients and 1,084 unique samples.
@@ -202,5 +215,30 @@ Patient-level attributes have more variable completeness than sample-level attri
 Sample-level clinical attributes are generally highly complete.
 
 The raw long-format data is ready for transformation.
+### Finding 8
+
+The selected study contains 1,066 samples profiled for mutation data.
+
+Only 1,009 samples have at least one returned mutation record.
+
+Therefore:
+
+`sequenced sample ≠ sample with a mutation`
+
+### Finding 9
+
+The mutation dataset contains:
+
+- 84,226 mutation records
+- 1,009 patients with mutation records
+- 16,488 unique genes
+
+### Finding 10
+
+Raw mutation-record frequency and patient-level gene frequency are different measures.
+
+Patient-level gene frequency is more useful for questions such as:
+
+"How many patients have a mutation in TP53?"
 
 EOF
