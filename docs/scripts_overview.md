@@ -348,5 +348,31 @@ Compare the mutation sequencing sample list with samples that actually have muta
 
 Being sequenced does not necessarily mean a sample has a called mutation.
 
+## `upload_to_gcs.py`
 
+### Purpose
+
+Upload the raw BioData Copilot datasets from the local machine to Google Cloud Storage.
+
+### Input
+
+- `data/raw/patient_clinical_data.json`
+- `data/raw/sample_clinical_data.json`
+- `data/raw/mutation_data.json`
+
+### Output
+
+Files are stored under:
+
+`gs://biodata-copilot-haneefa-raw/raw/`
+
+### Authentication
+
+Uses Google Application Default Credentials (ADC).
+
+No credentials are stored directly inside the Python source code.
+
+### Library
+
+`google-cloud-storage`
 EOF

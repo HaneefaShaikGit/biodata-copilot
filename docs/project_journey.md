@@ -64,6 +64,18 @@ flowchart TD
 | BigQuery | ⏳ |
 | OpenAI | ⏳ |
 | UI | ⏳ |
+| Stage | Status |
+|---|---|
+| Dataset selection | ✅ |
+| Clinical ingestion | ✅ |
+| Clinical validation | ✅ |
+| Mutation ingestion | ✅ |
+| Mutation validation | ✅ |
+| GCS raw storage | ✅ |
+| BigQuery warehouse | ⏳ |
+| SQL analytics | ⏳ |
+| OpenAI explanation layer | ⏳ |
+| UI | ⏳ |
 ---
 
 # Selected Dataset
@@ -193,7 +205,6 @@ The goal is to retrieve actual gene-level mutation records and connect them to t
 Move the raw and processed project data into Google Cloud Storage.
 
 The next stage will introduce the cloud storage layer while preserving the same raw-data structure created locally.
-
 ### Finding 6
 
 The selected study contains 1,084 unique patients and 1,084 unique samples.
@@ -240,5 +251,49 @@ Raw mutation-record frequency and patient-level gene frequency are different mea
 Patient-level gene frequency is more useful for questions such as:
 
 "How many patients have a mutation in TP53?"
+## Day 5 — Cloud Storage Layer
 
+The project moved from local-only storage to its first cloud infrastructure.
+
+### Before
+
+cBioPortal
+→ Python
+→ Local raw files
+
+### After
+
+cBioPortal
+→ Python
+→ Local raw files
+→ Google Cloud Storage
+
+### GCS Structure
+
+biodata-copilot-haneefa-raw/
+└── raw/
+    ├── patient_clinical_data.json
+    ├── sample_clinical_data.json
+    └── mutation_data.json
+
+### Completed
+
+- Google Cloud CLI installed
+- Google Cloud project configured
+- Application Default Credentials configured
+- GCS bucket created
+- Raw files uploaded manually using the CLI
+- Upload sizes validated
+- `google-cloud-storage` Python library installed
+- Python upload script created and tested
+
+### Key Learning
+
+The same GCS operation can be performed through:
+
+- Google Cloud Console
+- `gcloud` CLI
+- Python SDK
+
+The Python method is important because future pipeline execution should not depend on manually uploading files.
 EOF

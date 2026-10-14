@@ -125,4 +125,39 @@ BigQuery calculates facts.
 The LLM explains verified facts.
 
 Observed association does not automatically mean causation or clinical conclusion.
+## Use Google Cloud Storage for the raw data layer
+
+### Decision
+
+Store original downloaded biomedical datasets in Google Cloud Storage.
+
+### Why
+
+GCS provides durable cloud storage and separates the raw source data from downstream processing.
+
+This allows processed datasets and BigQuery tables to be rebuilt from the original source data when required.
+
+---
+
+## Use Application Default Credentials for local development
+
+### Decision
+
+Use Google Application Default Credentials instead of storing service-account keys or credentials in the repository.
+
+### Why
+
+The Python Google Cloud libraries can authenticate automatically while keeping credentials outside the project code.
+
+---
+
+## Use `asia-south1`
+
+### Decision
+
+Create the raw GCS bucket in the Mumbai region (`asia-south1`).
+
+### Why
+
+The project is currently being developed from India and future GCP resources should be colocated where practical.
 EOF

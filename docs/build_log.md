@@ -397,5 +397,87 @@ Therefore, patient-level gene frequency was calculated using unique:
 `patientId + gene`
 
 pairs.
+## Day 5 — Google Cloud Storage
 
+### Goal
+
+Move the raw biomedical data from the local machine into Google Cloud Storage and allow the Python application to upload files programmatically.
+
+### Google Cloud Setup
+
+Google Cloud CLI was installed and configured locally.
+
+Authentication was configured using:
+
+- Google Cloud CLI authentication
+- Application Default Credentials (ADC)
+
+ADC allows Python Google Cloud libraries to authenticate without storing credentials inside the project code.
+
+### GCP Project
+
+A Google Cloud project was created and configured as the active project.
+
+The project was also configured as the quota project for Application Default Credentials.
+
+### GCS Bucket
+
+Created bucket:
+
+`biodata-copilot-haneefa-raw`
+
+Configuration:
+
+- Region: `asia-south1`
+- Storage class: `STANDARD`
+- Uniform bucket-level access: enabled
+
+### Raw Data Uploaded
+
+The following files were uploaded:
+
+- `raw/patient_clinical_data.json`
+- `raw/sample_clinical_data.json`
+- `raw/mutation_data.json`
+
+Total uploaded size:
+
+`106,711,324 bytes (~101.77 MiB)`
+
+### Upload Validation
+
+Local file sizes were compared with the files stored in GCS.
+
+The total local size and GCS size both matched:
+
+`106,711,324 bytes`
+
+### Python GCS Integration
+
+Added dependency:
+
+`google-cloud-storage`
+
+Created:
+
+`src/biodata_copilot/storage/upload_to_gcs.py`
+
+The script uses Application Default Credentials and uploads the raw files to the GCS bucket.
+
+### Important Lesson
+
+The Google Cloud Console, CLI and Python SDK can perform the same cloud operations in different ways.
+
+For example:
+
+Console:
+Upload file manually
+
+CLI:
+`gcloud storage cp`
+
+Python:
+`blob.upload_from_filename()`
+
+For an automated data pipeline, Python or another programmatic method is preferred over manually uploading files through the console.
 EOF
