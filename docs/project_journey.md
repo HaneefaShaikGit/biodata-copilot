@@ -1,4 +1,3 @@
-cat > docs/project_journey.md <<'EOF'
 # BioData Copilot — Project Journey
 
 ## Project Goal
@@ -6,76 +5,72 @@ cat > docs/project_journey.md <<'EOF'
 Build a biomedical data platform that:
 
 1. retrieves public biomedical data,
-2. preserves raw data,
-3. validates and transforms it,
-4. stores analytical data in BigQuery,
-5. answers questions using SQL,
-6. uses an LLM to explain verified results.
+2. preserves the original source,
+3. validates and transforms the data,
+4. models the data for analytical SQL,
+5. generates verified analytical results,
+6. uses an LLM to explain those results.
 
 ---
 
-# Current Architecture
+# Current V1 Architecture
 
 ```mermaid
 flowchart TD
     A[cBioPortal] --> B[REST API]
     B --> C[Python Ingestion]
-    C --> D[GCS Raw Storage]
-    D --> E[Validation and Transformation]
-    E --> F[BigQuery]
-    F --> G[SQL Analytics]
-    G --> H[Verified Result]
-    H --> I[OpenAI]
-    I --> J[User Interface]
+    C --> D[Local Raw JSON]
+    D --> E[Validation and Profiling]
+    E --> F[Python Transformation]
+    F --> G[Processed Analytical Data]
+    G --> H[DuckDB]
+    H --> I[SQL Analytics]
+    I --> J[Verified Result]
+    J --> K[OpenAI]
+    K --> L[User Interface]
 ```
+
+## Optional Cloud Extension
+
+```mermaid
+flowchart LR
+    A[Local Pipeline] --> B[GCS]
+    B --> C[BigQuery]
+    C --> D[Cloud Deployment]
+```
+
+GCP was successfully explored but is not required for V1.
 
 ---
 
 # Progress
 
-| Phase | Status |
+| Stage | Status |
 |---|---|
 | Project setup | ✅ |
-| API understanding | ✅ |
-| Study exploration | ✅ |
-| Cancer-family grouping | ✅ |
-| Candidate comparison | ✅ |
+| cBioPortal API exploration | ✅ |
+| Cancer-family comparison | ✅ |
+| Candidate-study comparison | ✅ |
 | Dataset selection | ✅ |
-| Actual clinical-data ingestion | ⏳ |
-| Mutation-data ingestion | ⏳ |
-| GCS | ⏳ |
-| Data validation | ⏳ |
-| BigQuery | ⏳ |
-| OpenAI | ⏳ |
-| UI | ⏳ |
-| Raw clinical-data profiling | ✅ |
-| Clinical-data transformation | ⏳ |
-| Clinical-data transformation | ✅ |
+| Clinical-data ingestion | ✅ |
+| Clinical-data profiling | ✅ |
+| Patient/sample relationship validation | ✅ |
+| Clinical long-to-wide transformation | ✅ |
 | Wide-table validation | ✅ |
-| Value profiling | ✅ |
-| Analytics-table creation | ✅ |
-| Mutation-data ingestion | ⏳ |
-| GCS | ⏳ |
-| BigQuery | ⏳ |
+| Clinical value/type profiling | ✅ |
+| Patient analytics dataset | ✅ |
+| Sample analytics dataset | ✅ |
 | Mutation-data ingestion | ✅ |
 | Mutation-data profiling | ✅ |
 | Mutation coverage validation | ✅ |
-| GCS raw-data storage | ⏳ |
-| BigQuery | ⏳ |
-| OpenAI | ⏳ |
-| UI | ⏳ |
-| Stage | Status |
-|---|---|
-| Dataset selection | ✅ |
-| Clinical ingestion | ✅ |
-| Clinical validation | ✅ |
-| Mutation ingestion | ✅ |
-| Mutation validation | ✅ |
-| GCS raw storage | ✅ |
-| BigQuery warehouse | ⏳ |
-| SQL analytics | ⏳ |
+| Mutation analytics dataset | ✅ |
+| Mutation analytics validation | ✅ |
+| GCP/GCS exploration | ✅ |
+| DuckDB analytical layer | ⏳ |
+| SQL analytical models | ⏳ |
 | OpenAI explanation layer | ⏳ |
-| UI | ⏳ |
+| User interface | ⏳ |
+
 ---
 
 # Selected Dataset
@@ -92,12 +87,12 @@ Breast Invasive Carcinoma — TCGA PanCancer Atlas
 
 # Why This Dataset
 
-Provides broad:
+The study provides broad:
 
 - demographic data
 - tumour stage
-- subtype
-- survival
+- breast-cancer subtype
+- survival information
 - mutation data
 - gene expression
 - copy-number information
@@ -105,13 +100,15 @@ Provides broad:
 - protein information
 - structural variants
 
+The study was selected because it provides general-purpose clinical and molecular coverage rather than being focused on a single specialised research question.
+
 ---
 
 # Dataset Selection Flow
 
 ```mermaid
 flowchart TD
-    A[550 cBioPortal Studies] --> B[Group by Cancer Family]
+    A[~550 cBioPortal Studies] --> B[Group by Cancer Family]
     B --> C[Compare Study Coverage]
     C --> D[Shortlist Candidates]
     D --> E[Compare Clinical Attributes]
@@ -122,14 +119,239 @@ flowchart TD
 
 ---
 
-# Scripts So Far
+# Clinical Data Journey
 
-| Script | Purpose |
-|---|---|
-| `explore_studies.py` | Initial cBioPortal exploration |
-| `compare_cancer_types.py` | Cancer-family comparison |
-| `compare_candidate_studies.py` | Candidate metadata comparison |
-| `inspect_study.py` | Detailed study inspection |
+cBioPortal clinical data was returned in long format:
+
+`patientId | clinicalAttributeId | value`
+
+Python transformed this into wide analytical tables.
+
+## Patient Clinical Data
+
+Raw:
+
+- 41,497 records
+- 1,084 patients
+- 40 attributes
+
+Wide:
+
+- 1,084 rows
+- 42 columns
+
+Analytics:
+
+- 1,084 rows
+- 17 columns
+
+## Sample Clinical Data
+
+Raw:
+
+- 19,348 records
+- 1,084 samples
+- 18 attributes
+
+Wide:
+
+- 1,084 rows
+- 21 columns
+
+Analytics:
+
+- 1,084 rows
+- 12 columns
+
+---
+
+# Patient–Sample Relationship
+
+The selected study contains:
+
+- 1,084 unique patients
+- 1,084 unique samples
+- 0 patients with multiple samples
+
+Observed relationship:
+
+`1 patient → 1 sample`
+
+This simplifies future patient/sample joins.
+
+---
+
+# Mutation Data Journey
+
+Mutation profile:
+
+`brca_tcga_pan_can_atlas_2018_mutations`
+
+Mutation sample list:
+
+`brca_tcga_pan_can_atlas_2018_sequenced`
+
+## Mutation Coverage
+
+- Total study samples: 1,084
+- Sequenced samples: 1,066
+- Samples with at least one mutation record: 1,009
+- Sequenced samples with no returned mutation record: 57
+
+Important distinction:
+
+`sequenced sample ≠ sample with a mutation`
+
+---
+
+# Mutation Dataset
+
+Raw mutation records:
+
+`84,226`
+
+Unique patients with mutation records:
+
+`1,009`
+
+Unique samples with mutation records:
+
+`1,009`
+
+Unique genes represented:
+
+`16,488`
+
+---
+
+# Mutation Analytics Dataset
+
+The nested mutation JSON was flattened into:
+
+`data/processed/mutation_analytics.csv`
+
+Result:
+
+- 84,226 rows
+- 19 columns
+- 1,009 patients
+- 1,009 samples
+- 16,488 genes
+
+Critical-field validation:
+
+- missing `patientId`: 0
+- missing `sampleId`: 0
+- missing `gene`: 0
+- missing `mutationType`: 0
+
+Row-count validation:
+
+`PASSED`
+
+---
+
+# Important Mutation Finding
+
+Raw mutation-record counts are not the same as patient-level gene mutation counts.
+
+A patient can contribute multiple mutation records for the same gene.
+
+Therefore, patient-level gene frequency is calculated using unique:
+
+`patientId + gene`
+
+pairs.
+
+Examples:
+
+- TP53: 347 patients
+- PIK3CA: 347 patients
+- TTN: 187 patients
+- CDH1: 130 patients
+- GATA3: 127 patients
+
+---
+
+# Processed V1 Data
+
+The main processed datasets are:
+
+```text
+data/processed/
+├── patient_analytics.csv
+├── sample_analytics.csv
+└── mutation_analytics.csv
+```
+
+Intermediate wide clinical datasets are retained for traceability:
+
+```text
+patient_clinical_wide.csv
+sample_clinical_wide.csv
+```
+
+---
+
+# GCP Exploration
+
+Google Cloud was explored after the local processing layer had been built.
+
+## Completed
+
+- Google Cloud CLI installation
+- Google account authentication
+- Google Cloud project setup
+- Application Default Credentials
+- GCS raw bucket
+- GCS processed bucket
+- raw JSON upload
+- processed CSV upload
+- Python `google-cloud-storage` integration
+
+## Key Learning
+
+The same cloud operation can be performed through:
+
+- Google Cloud Console
+- `gcloud` CLI
+- Python SDK
+
+Authentication and authorization are separate concerns:
+
+`Authentication → Who are you?`
+
+`Authorization → What are you allowed to do?`
+
+ADC was used so Python could authenticate without storing credential files inside the repository.
+
+---
+
+# Architecture Reassessment
+
+After experimenting with GCP, the architecture was reassessed.
+
+The current dataset is small enough to process comfortably on a local machine.
+
+Most ingestion, validation, and transformation already occur locally.
+
+Therefore, making GCS and BigQuery mandatory would add complexity without currently solving a scale, collaboration, or deployment requirement.
+
+## Decision
+
+V1 will be local-first.
+
+DuckDB will be used for the SQL analytical layer.
+
+GCP remains a possible Phase 2 deployment option.
+
+This follows the principle:
+
+`Problem → Requirements → Architecture → Technology`
+
+rather than:
+
+`Technology → Find somewhere to use it`
 
 ---
 
@@ -137,14 +359,18 @@ flowchart TD
 
 1. The biggest dataset is not automatically the best dataset.
 2. More columns do not automatically mean better data.
-3. Structured metadata is better than relying only on text searches.
-4. Related cancer types may need to be grouped using hierarchy.
-5. Start with simple Python and refactor later.
-6. The LLM should not be the source of numerical truth.
-7. Validate transformations after reshaping data.
-8. Do not fill missing values without a reason.
-9. Do not delete outliers without evidence.
-10. Keep only V1-relevant columns in analytics tables.
+3. Structured metadata is better than relying only on text search.
+4. Related cancer types may need hierarchy-based grouping.
+5. Preserve raw source data before transformation.
+6. Validate transformations rather than assuming successful execution means correct data.
+7. Missing values should not be filled without a reason.
+8. Outliers should not be removed without evidence.
+9. Raw mutation rows are different from patient-level mutation frequency.
+10. Python is useful for API and semi-structured data processing.
+11. SQL should handle analytical joins, aggregations, and marts.
+12. The LLM should explain verified facts rather than generate them.
+13. Cloud technology should be introduced only when it solves a real requirement.
+14. Distributed processing is unnecessary for the current dataset size.
 
 ---
 
@@ -154,146 +380,35 @@ Use:
 
 - Clinical data
 - Mutation data
+- Python
+- Pandas
+- DuckDB
+- SQL
+- OpenAI
+- Simple UI
 
 Not yet:
 
-- mRNA analysis
+- gene-expression analysis
 - methylation analysis
 - protein analysis
 - RAG
 - ML models
 - natural-language-to-SQL
+- Spark
+- production cloud deployment
 
 ---
 
 # Current Next Step
 
-Retrieve actual clinical records from:
+Introduce DuckDB as the local analytical database.
 
-`brca_tcga_pan_can_atlas_2018`
+Next:
 
-Then determine:
-
-1. what the API response looks like,
-2. whether records are patient-level or sample-level,
-3. how many records exist,
-4. how attributes are represented,
-5. how raw data should be stored.
-
-# Current Next Step
-
-Transform the patient-level and sample-level clinical data from long format into wide analytical tables.
-
-Example:
-
-Long format:
-
-patientId | clinicalAttributeId | value
-
-Wide format:
-
-patientId | AGE | SEX | OS_MONTHS | OS_STATUS | ...
-
-# Current Next Step
-
-Begin mutation-data ingestion for the selected study.
-
-The goal is to retrieve actual gene-level mutation records and connect them to the existing sample/patient analytics tables.
-
-# Current Next Step
-
-Move the raw and processed project data into Google Cloud Storage.
-
-The next stage will introduce the cloud storage layer while preserving the same raw-data structure created locally.
-### Finding 6
-
-The selected study contains 1,084 unique patients and 1,084 unique samples.
-
-No patient had more than one sample in the sample-level clinical dataset.
-
-Observed relationship:
-
-`1 patient → 1 sample`
-
-This will simplify future joins between patient and sample data.
-
-### Finding 7
-
-The raw clinical data contains no duplicate entity-attribute pairs.
-
-Patient-level attributes have more variable completeness than sample-level attributes.
-
-Sample-level clinical attributes are generally highly complete.
-
-The raw long-format data is ready for transformation.
-### Finding 8
-
-The selected study contains 1,066 samples profiled for mutation data.
-
-Only 1,009 samples have at least one returned mutation record.
-
-Therefore:
-
-`sequenced sample ≠ sample with a mutation`
-
-### Finding 9
-
-The mutation dataset contains:
-
-- 84,226 mutation records
-- 1,009 patients with mutation records
-- 16,488 unique genes
-
-### Finding 10
-
-Raw mutation-record frequency and patient-level gene frequency are different measures.
-
-Patient-level gene frequency is more useful for questions such as:
-
-"How many patients have a mutation in TP53?"
-## Day 5 — Cloud Storage Layer
-
-The project moved from local-only storage to its first cloud infrastructure.
-
-### Before
-
-cBioPortal
-→ Python
-→ Local raw files
-
-### After
-
-cBioPortal
-→ Python
-→ Local raw files
-→ Google Cloud Storage
-
-### GCS Structure
-
-biodata-copilot-haneefa-raw/
-└── raw/
-    ├── patient_clinical_data.json
-    ├── sample_clinical_data.json
-    └── mutation_data.json
-
-### Completed
-
-- Google Cloud CLI installed
-- Google Cloud project configured
-- Application Default Credentials configured
-- GCS bucket created
-- Raw files uploaded manually using the CLI
-- Upload sizes validated
-- `google-cloud-storage` Python library installed
-- Python upload script created and tested
-
-### Key Learning
-
-The same GCS operation can be performed through:
-
-- Google Cloud Console
-- `gcloud` CLI
-- Python SDK
-
-The Python method is important because future pipeline execution should not depend on manually uploading files.
-EOF
+1. create the local DuckDB database,
+2. load patient analytics,
+3. load sample analytics,
+4. load mutation analytics,
+5. validate table row counts,
+6. begin SQL analytical modeling.

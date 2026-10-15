@@ -1,21 +1,31 @@
-cat > docs/decisions.md <<'EOF'
 # BioData Copilot — Decisions
 
 ## 1. Use `uv`
 
+### Decision
+
+Use `uv` for Python project and dependency management.
+
 ### Why
-Provides:
+
+It provides:
+
 - dependency management
-- virtual environment
+- virtual environments
 - `pyproject.toml`
 - reproducible `uv.lock`
 
 ---
 
-## 2. Build locally before GitHub
+## 2. Build locally before publishing to GitHub
+
+### Decision
+
+Develop and test the project locally first.
 
 ### Why
-The project can be tested and cleaned before being published.
+
+The project can be cleaned, tested, and documented before publication.
 
 Git is still used locally for version control.
 
@@ -23,22 +33,34 @@ Git is still used locally for version control.
 
 ## 3. Keep Python simple first
 
+### Decision
+
+Prefer simple and explicit Python during the initial implementation.
+
 ### Why
+
 The project is also being used to strengthen Python fundamentals.
 
-Flow:
+Development approach:
 
-Simple code
-→ Understand it
-→ Find repetition
+Simple code  
+→ Understand it  
+→ Test it  
+→ Find repetition  
 → Refactor later
 
 ---
 
 ## 4. Use cBioPortal
 
+### Decision
+
+Use cBioPortal as the biomedical data source.
+
 ### Why
+
 It provides:
+
 - public cancer studies
 - REST APIs
 - clinical data
@@ -49,38 +71,43 @@ It provides:
 
 ## 5. Do not choose a cancer type randomly
 
+### Decision
+
+Compare available studies before selecting the dataset.
+
 ### Why
-The dataset choice should be justified through actual data availability.
+
+The dataset should be chosen based on actual data coverage rather than personal preference.
 
 ---
 
 ## 6. Group studies by cancer family
 
 ### Problem
-Related IDs appeared separately.
+
+Related cancer types appeared under different identifiers.
 
 Example:
 
-`brca`
-and
-`breast`
-
-### Finding
-`brca → parent breast`
+`brca → breast → tissue`
 
 ### Decision
-Group specific cancer types into broader families.
+
+Follow the cBioPortal cancer-type hierarchy to group specific cancer types into broader families.
 
 ---
 
-## 7. Do not select only by sample size
+## 7. Do not select a study only by sample size
 
 ### Why
-Large datasets can be highly specialised.
 
-Example:
-- Lung: metastatic organotropism
-- Pancreas: KRAS-focused
+Large studies may be highly specialised.
+
+Examples inspected:
+
+- Lung MSK study — metastatic organotropism focus
+- Pancreas MSK study — KRAS-focused
+- Breast TCGA PanCancer Atlas — broad clinical and molecular coverage
 
 ---
 
@@ -91,73 +118,197 @@ Study ID:
 `brca_tcga_pan_can_atlas_2018`
 
 ### Why
-It contains broad:
-- demographics
-- stage
-- subtype
+
+It provides broad:
+
+- demographic information
+- tumour stage
+- molecular subtype
 - survival data
-- mutations
-- expression
-- copy-number data
+- mutation data
+- gene expression
+- copy-number information
 - methylation
 - protein information
+- structural variants
 
-This makes it suitable for a general biomedical data exploration project.
+This makes it suitable for a general biomedical data exploration platform.
 
 ---
 
-## 9. Limit V1 scope
+## 9. Limit V1 data scope
+
+### Decision
 
 Initially use:
+
 1. Clinical data
 2. Mutation data
 
-Do not use every available molecular profile yet.
+### Why
+
+The selected study contains many additional molecular profiles, but using everything in V1 would unnecessarily increase project complexity.
 
 ---
 
 ## 10. Separate facts from interpretation
 
-Core rule:
-
-BigQuery calculates facts.
-
-The LLM explains verified facts.
-
-Observed association does not automatically mean causation or clinical conclusion.
-## Use Google Cloud Storage for the raw data layer
-
 ### Decision
 
-Store original downloaded biomedical datasets in Google Cloud Storage.
+Use deterministic SQL/database operations to calculate numerical results.
 
-### Why
+Use the LLM only to explain those verified results.
 
-GCS provides durable cloud storage and separates the raw source data from downstream processing.
+### Rule
 
-This allows processed datasets and BigQuery tables to be rebuilt from the original source data when required.
+Observed association does not automatically imply:
+
+- causation
+- diagnosis
+- prognosis
+- treatment recommendation
 
 ---
 
-## Use Application Default Credentials for local development
+## 11. Preserve raw source data
 
 ### Decision
 
-Use Google Application Default Credentials instead of storing service-account keys or credentials in the repository.
+Keep the original API responses before transformation.
 
 ### Why
 
-The Python Google Cloud libraries can authenticate automatically while keeping credentials outside the project code.
+Raw data allows:
+
+- traceability
+- debugging
+- rebuilding processed datasets
+- checking whether transformation logic introduced errors
 
 ---
 
-## Use `asia-south1`
+## 12. Use Python for structural biomedical-data preparation
 
 ### Decision
 
-Create the raw GCS bucket in the Mumbai region (`asia-south1`).
+Use Python and pandas for:
+
+- API ingestion
+- JSON handling
+- validation
+- profiling
+- long-to-wide transformation
+- nested mutation-data flattening
+- creation of processed analytical datasets
 
 ### Why
 
-The project is currently being developed from India and future GCP resources should be colocated where practical.
-EOF
+Python is well suited to working with nested API responses and biomedical data structures.
+
+---
+
+## 13. Use SQL for analytical modeling
+
+### Decision
+
+After processed datasets are loaded into the analytical database, use SQL for:
+
+- joins
+- aggregations
+- mutation-frequency calculations
+- subtype summaries
+- patient-level analytical models
+- final application-facing results
+
+### Why
+
+This creates a clear separation between structural data preparation and analytical modeling.
+
+---
+
+## 14. Use a local-first architecture for V1
+
+### Decision
+
+Use DuckDB as the analytical database for V1 instead of requiring BigQuery.
+
+### Why
+
+The current dataset is small:
+
+- approximately 100 MB of raw data
+- 1,084 patients
+- 84,226 mutation records
+
+The dataset can comfortably be processed on a single machine.
+
+Using a managed cloud warehouse would currently add infrastructure complexity without solving a real scale or collaboration problem.
+
+---
+
+## 15. Do not force GCP into the core architecture
+
+### Decision
+
+GCP is treated as an explored deployment option rather than a required V1 component.
+
+### Why
+
+The initial pipeline performs ingestion and transformation locally.
+
+Uploading already-processed local data to cloud services solely to demonstrate GCP would not materially improve the current project.
+
+Technology should be selected because it solves a requirement, not simply because it is available.
+
+---
+
+## 16. Retain the GCP work as a Phase 2 option
+
+### Work Completed
+
+The project successfully tested:
+
+- Google Cloud CLI
+- Google Cloud project setup
+- Application Default Credentials
+- GCS raw bucket
+- GCS processed bucket
+- Python GCS uploads
+- raw and processed file storage
+
+### Future Use
+
+If BioData Copilot is deployed or scaled later, the architecture could evolve to:
+
+cBioPortal  
+→ cloud-hosted ingestion  
+→ GCS  
+→ BigQuery  
+→ SQL analytics  
+→ deployed application
+
+---
+
+## 17. Use Application Default Credentials for local GCP experimentation
+
+### Decision
+
+Use ADC instead of storing service-account keys inside the repository.
+
+### Why
+
+Google Cloud libraries can discover local credentials automatically without hardcoding secrets into the application.
+
+---
+
+## 18. Use `asia-south1` for GCP experimentation
+
+### Decision
+
+Cloud Storage resources created during the GCP exploration use:
+
+`asia-south1`
+
+### Why
+
+The resources were created for development from India and colocating related cloud services would simplify a future cloud architecture.

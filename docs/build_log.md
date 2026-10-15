@@ -1,366 +1,712 @@
-cat > docs/build_log.md <<'EOF'
 # BioData Copilot — Build Log
 
-## Day 1 — Project Foundation
+This document records the major implementation steps, findings, mistakes, validations, and architectural decisions made while building BioData Copilot.
 
-### Goal
-Set up the Python project locally and understand the architecture before building.
-
-### What we did
-- Created the project using `uv`
-- Confirmed Python 3.12.10
-- Created the Python package under `src/biodata_copilot`
-- Created folders for ingestion, validation, transformation, analytics and AI
-- Initialized local Git
-- Created initial project documentation
-
-### Concepts learned
-- API = interface used by software systems to communicate
-- JSON = structured data-interchange format
-- GCS = object/file storage
-- BigQuery = analytical data warehouse
-- Raw data should be preserved for traceability
-- BigQuery should calculate factual results
-- LLM should explain verified results
-
-### Project Flow
-
-Public Biomedical Data
-→ REST API
-→ Python
-→ GCS
-→ Validation / Transformation
-→ BigQuery
-→ SQL
-→ Verified Result
-→ OpenAI
-→ User
-
-### Result
-The package entry point worked successfully:
-
-`uv run biodata-copilot`
-
-Output:
-
-`Hello from biodata-copilot!`
+The goal is to preserve not only what was built, but also why each step was taken.
 
 ---
 
-## Day 2 — Dataset Exploration
+# Day 1 — Project Setup and Architecture
 
-### Goal
-Explore cBioPortal and select a suitable biomedical dataset.
+## Goal
 
-### API health check
+Define the project, understand the problem, and create a clean Python development environment.
 
-Endpoint:
+## Project Idea
 
-`https://www.cbioportal.org/api/health`
+BioData Copilot is a biomedical data platform that combines:
 
-Result:
+- biomedical data
+- data engineering
+- SQL analytics
+- trustworthy AI explanations
 
-`{"status":"UP"}`
+The core principle is:
 
-HTTP status:
+**The database calculates facts.**
 
-`200`
+**The LLM explains verified facts.**
 
-### Study exploration
+The LLM should not invent numerical results or unsupported clinical conclusions.
 
-Endpoint:
+---
 
-`/api/studies`
+## Initial Architecture
 
-Result:
+The first architecture considered was:
+
+cBioPortal  
+→ Python  
+→ Raw Storage  
+→ Validation  
+→ Transformation  
+→ Analytical Database  
+→ SQL  
+→ Verified Results  
+→ OpenAI  
+→ User Interface
+
+The exact storage and analytical technologies were intentionally left open until the data requirements were better understood.
+
+---
+
+## Python Project Setup
+
+The project was initialized using `uv`.
+
+Project location:
+
+`/Users/haneefa/Desktop/Job/biodata-copilot`
+
+Python version:
+
+`3.12.10`
+
+Main project structure:
+
+- `src/`
+- `data/raw/`
+- `data/processed/`
+- `docs/`
+- `tests/`
+- `app/`
+- `notebooks/`
+
+---
+
+## Git Setup
+
+Git was initialized locally.
+
+The main branch was renamed to:
+
+`main`
+
+A `.gitignore` file was added to exclude:
+
+- virtual environments
+- local environment files
+- raw datasets
+- processed datasets
+- operating-system files
+- editor-specific files
+
+The project is being developed locally before being published to GitHub.
+
+---
+
+## Important Concepts Learned
+
+### API
+
+An API allows one application to request information or functionality from another application.
+
+### JSON
+
+JSON is a structured data-interchange format commonly returned by APIs.
+
+It is not only a file format.
+
+### Raw Data
+
+Raw data should be preserved before transformation so that downstream datasets can be rebuilt and transformation errors can be investigated.
+
+### Grounded AI
+
+The LLM should explain verified results rather than calculate or invent the underlying facts.
+
+---
+
+# Day 2 — Dataset Exploration and Selection
+
+## Goal
+
+Choose a biomedical dataset using actual data coverage rather than randomly selecting a cancer type.
+
+---
+
+## cBioPortal API Check
+
+The cBioPortal API was tested successfully.
+
+API health returned:
+
+`HTTP 200`
+
+The studies endpoint returned approximately:
 
 `550 studies`
 
-### What we discovered
-- cBioPortal contains hundreds of cancer studies
-- Studies have different sample counts
-- Raw cancer IDs do not always represent separate disease families
-- Example: `brca` belongs under `breast`
-- Dataset size alone is not enough for dataset selection
+---
 
-### Cancer-family comparison
+## Initial Study Exploration
 
-Examples:
+Created:
 
-| Family | Studies | Largest Study |
-|---|---:|---:|
-| Lung | 41 | 2,653 |
-| Breast | 38 | 6,318 |
-| CNS/Brain | 35 | 1,122 |
-| Prostate | 31 | 2,260 |
-| Bowel | 29 | 7,237 |
-| Pancreas | 21 | 2,336 |
+`explore_studies.py`
 
-### Candidate comparison
+The script retrieved study metadata and helped understand the structure returned by the cBioPortal API.
 
-| Study | Clinical Attributes | Molecular Profiles |
-|---|---:|---:|
-| Breast MSK 2026 | 36 | 3 |
-| Lung MSK 2023 | 91 | 3 |
-| Colorectal MSK 2026 | 23 | 3 |
-| Prostate MSK 2024 | 24 | 3 |
-| Pancreas MSK 2024 | 52 | 3 |
+Important Python concepts included:
 
-### Important finding
-The biggest study is not automatically the best dataset.
+- `requests.get()`
+- `response.json()`
+- lists
+- dictionaries
+- loops
+- conditions
+- `raise_for_status()`
 
-Examples:
-- Lung dataset was focused on metastatic organotropism
-- Pancreas dataset was strongly focused on KRAS
+---
 
-### Selected dataset
+## Problem with Keyword-Based Selection
+
+An early approach searched for studies containing terms such as:
+
+`breast`
+
+This was rejected as the main selection method because the keyword itself was arbitrary.
+
+The dataset should be chosen based on actual study coverage and available fields.
+
+---
+
+## Cancer-Family Comparison
+
+Created:
+
+`compare_cancer_types.py`
+
+The script retrieved:
+
+- studies
+- cancer-type metadata
+
+A problem was discovered:
+
+related cancer types could appear under different identifiers.
+
+Example:
+
+`brca → breast → tissue`
+
+A hierarchy-following function was created to group specific cancer types into broader cancer families.
+
+---
+
+## Cancer-Family Summary
+
+Examples of broad study coverage included:
+
+| Cancer Family | Approx. Studies |
+|---|---:|
+| Lung | 41 |
+| Breast | 38 |
+| CNS / Brain | 35 |
+| Prostate | 31 |
+| Lymphoid | 30 |
+| Bowel | 29 |
+| Skin | 28 |
+| Bladder / Urinary | 28 |
+| Soft Tissue | 27 |
+| Kidney | 25 |
+| Pancreas | 21 |
+
+The exercise demonstrated that dataset selection should consider more than one study or disease area.
+
+---
+
+## Candidate Study Comparison
+
+Created:
+
+`compare_candidate_studies.py`
+
+Candidate studies from several cancer families were compared using:
+
+- number of clinical attributes
+- number of molecular profiles
+- sample count
+
+Candidate examples included:
+
+- Breast
+- Lung
+- Bowel
+- Prostate
+- Pancreas
+
+---
+
+## Important Finding
+
+A larger dataset or a dataset with more fields is not automatically better.
+
+The meaning of the fields must be inspected.
+
+---
+
+## Detailed Candidate Inspection
+
+Created:
+
+`inspect_study.py`
+
+### Lung Study
+
+The inspected lung dataset contained rich information including:
+
+- survival
+- stage
+- treatment
+- metastatic sites
+- TMB
+- MSI
+- mutation data
+
+However, it had a specialised metastatic organotropism focus.
+
+### Pancreas Study
+
+The pancreatic study contained:
+
+- survival
+- treatment
+- TMB
+- MSI
+- mutation data
+- extensive KRAS-related variables
+
+However, it was strongly KRAS-focused.
+
+### Breast TCGA PanCancer Atlas
 
 Study ID:
 
 `brca_tcga_pan_can_atlas_2018`
 
-Reason:
-- broad clinical information
-- stage and subtype information
+It contained broad:
+
+- demographic information
+- tumour stage
 - survival outcomes
+- breast-cancer subtype
 - mutation data
-- mRNA expression
+- mRNA data
 - copy-number data
 - methylation
-- protein data
+- protein information
 - structural variants
 
-### V1 scope
+---
 
-Initially use:
-1. Clinical data
-2. Mutation data
+## Dataset Decision
 
-### Next step
-Retrieve actual clinical records from the selected study.
+Selected:
 
-### Patient–Sample Relationship Check
+`brca_tcga_pan_can_atlas_2018`
 
-The selected study returned:
+Reason:
 
-- 1,084 unique patients
-- 1,084 unique samples
-- 0 patients with multiple samples
+The dataset provides broad clinical and molecular coverage without being narrowly designed around one specific research question.
 
-This means the observed relationship in this study is:
+---
 
-`1 patient → 1 sample`
+# Day 2 — Clinical Data Ingestion
 
-This simplifies future joins between patient-level and sample-level clinical data.
+## Goal
 
-### Raw Clinical Data Profiling
+Retrieve actual patient-level and sample-level clinical records.
 
-The patient-level clinical dataset contains:
+---
+
+## Clinical API Structure
+
+Clinical data was returned in long format.
+
+Example structure:
+
+`patientId | clinicalAttributeId | value`
+
+Patient and sample clinical data were retrieved separately.
+
+---
+
+## Raw Clinical Data
+
+Created:
+
+`fetch_clinical_data.py`
+
+Outputs:
+
+- `data/raw/patient_clinical_data.json`
+- `data/raw/sample_clinical_data.json`
+
+### Patient Data
 
 - 41,497 raw records
 - 1,084 unique patients
 - 40 unique clinical attributes
-- 0 duplicate patient-attribute pairs
 
-The sample-level clinical dataset contains:
+### Sample Data
 
 - 19,348 raw records
 - 1,084 unique samples
 - 18 unique clinical attributes
+
+---
+
+## Patient–Sample Relationship
+
+Created:
+
+`check_patient_sample_relationship.py`
+
+Result:
+
+- Total patients: 1,084
+- Patients with multiple samples: 0
+
+Observed relationship:
+
+`1 patient → 1 sample`
+
+Both patient and sample identifiers are still retained because other biomedical studies may have one-to-many relationships.
+
+---
+
+## Clinical Data Profiling
+
+Created:
+
+`profile_clinical_data.py`
+
+Checks included:
+
+- record count
+- entity count
+- attribute count
+- duplicate entity-attribute pairs
+- completeness
+
+### Patient Results
+
+- 41,497 records
+- 1,084 patients
+- 40 attributes
+- 0 duplicate patient-attribute pairs
+
+### Sample Results
+
+- 19,348 records
+- 1,084 samples
+- 18 attributes
 - 0 duplicate sample-attribute pairs
 
-The lowest patient-level completeness was observed for:
+---
 
-| Attribute | Completeness |
-|---|---:|
-| PRIMARY_LYMPH_NODE_PRESENTATION_ASSESSMENT | 66.42% |
-| NEW_TUMOR_EVENT_AFTER_INITIAL_TREATMENT | 81.64% |
-| ETHNICITY | 84.41% |
-| DFS_MONTHS | 86.81% |
-| DFS_STATUS | 86.90% |
+## Important Data-Quality Lesson
 
-The sample-level dataset was generally more complete. Its lowest completeness values were:
+Completeness means that an attribute is present for an entity.
 
-| Attribute | Completeness |
-|---|---:|
-| MSI_SCORE_MANTIS | 95.39% |
-| ANEUPLOIDY_SCORE | 96.03% |
-| MUTATION_COUNT | 98.34% |
-| TMB_NONSYNONYMOUS | 98.34% |
-| FRACTION_GENOME_ALTERED | 98.52% |
+It does not mean that the biological value is necessarily correct.
 
-### Interpretation
+---
 
-Completeness here measures whether an attribute is present for an entity.
+# Day 3 — Clinical Transformation and Validation
 
-It does not yet validate whether the actual value is biologically or logically correct.
+## Goal
 
-No duplicate entity-attribute pairs were found.
+Convert long-format clinical API data into structured analytical tables.
 
-This means the long-format clinical data is suitable for transformation into wider analytical tables.
+---
 
-## Day 3 — Clinical Data Transformation
+## Patient Transformation
 
-### Goal
+Created:
 
-Convert raw long-format clinical data into structured and analytics-ready tables.
+`transform_patient_data.py`
 
-### Patient Transformation
+Transformation:
 
-Raw patient data:
+Long format:
 
-- 41,497 long-format records
-- 1,084 patients
-- 40 clinical attributes
+`patientId | clinicalAttributeId | value`
 
-Transformed wide table:
+became wide format:
+
+`patientId | AGE | SEX | RACE | SUBTYPE | OS_MONTHS | ...`
+
+Output:
+
+`data/processed/patient_clinical_wide.csv`
+
+Result:
 
 - 1,084 rows
 - 42 columns
 
-### Sample Transformation
+---
 
-Raw sample data:
+## Sample Transformation
 
-- 19,348 long-format records
-- 1,084 samples
-- 18 clinical attributes
+Created:
 
-Transformed wide table:
+`transform_sample_data.py`
+
+Output:
+
+`data/processed/sample_clinical_wide.csv`
+
+Result:
 
 - 1,084 rows
 - 21 columns
 
-### Validation Results
+---
 
-Patient table:
+## Wide-Table Validation
+
+Created:
+
+`validate_wide_tables.py`
+
+### Patient Table
 
 - 1,084 rows
-- 1,084 unique patients
+- 1,084 unique patient IDs
 - 0 duplicate patient IDs
 
-Sample table:
+### Sample Table
 
 - 1,084 rows
-- 1,084 unique samples
+- 1,084 unique sample IDs
 - 0 duplicate sample IDs
 
-Patient/sample relationship:
+Cross-table patient consistency checks also passed.
 
-- 0 patient IDs missing from sample table
-- 0 sample patient IDs missing from patient table
+---
 
-### Data-Type Inspection
+## Data-Type Inspection
 
-Pandas correctly inferred most numeric and text fields.
+Created:
+
+`inspect_data_types.py`
+
+Important types included:
+
+- identifiers → string
+- AGE → integer
+- survival months → floating point
+- clinical categories → string
+- mutation count / TMB → numeric
+
+A key lesson was:
+
+Do not force data types before inspecting the actual values.
+
+---
+
+## Value Inspection
+
+Created:
+
+`inspect_values.py`
+
+Examples observed:
+
+### Sex
+
+- Female: 1,072
+- Male: 12
+
+### Subtype
 
 Examples:
 
-Numeric:
-- AGE
-- OS_MONTHS
-- DFS_MONTHS
-- MUTATION_COUNT
-- TMB_NONSYNONYMOUS
+- LumA
+- LumB
+- Basal
+- Her2
+- Normal
+- missing values
 
-Categorical/text:
-- SEX
-- RACE
-- SUBTYPE
-- OS_STATUS
-- SAMPLE_TYPE
+### Overall Survival Status
 
-### Value Inspection
+- Living: 933
+- Deceased: 151
 
-Important observations:
+### Age
 
-- AGE ranged from 26 to 90
-- OS_STATUS was complete
-- SUBTYPE contained missing values
-- RACE contained missing values
-- MUTATION_COUNT contained high outliers
+- Count: 1,084
+- Mean: approximately 58.4
+- Minimum: 26
+- Maximum: 90
 
-High mutation-count samples also had high TMB values.
+---
 
-This suggests the extreme values are internally consistent and should not automatically be treated as errors.
+## Outlier Review
 
-### Key Lesson
+Some samples had very high mutation counts.
 
-An outlier is not automatically bad data.
+Examples also showed correspondingly high TMB values.
 
-### Analytics Tables Created
+Because the values were internally consistent, they were retained.
 
-Patient analytics table:
+Important lesson:
+
+**Outlier does not automatically mean error.**
+
+---
+
+## Clinical Analytics Tables
+
+Created:
+
+`create_analytics_tables.py`
+
+### Patient Analytics
+
+Output:
+
+`data/processed/patient_analytics.csv`
+
+Result:
 
 - 1,084 rows
 - 17 columns
 
-Sample analytics table:
+Fields include:
+
+- patient ID
+- study ID
+- age
+- sex
+- race
+- ethnicity
+- stage
+- subtype
+- survival fields
+- radiation therapy
+
+### Sample Analytics
+
+Output:
+
+`data/processed/sample_analytics.csv`
+
+Result:
 
 - 1,084 rows
 - 12 columns
 
-### Final Local Data Flow
+Fields include:
 
-Raw JSON
-→ Wide Clinical Tables
-→ Validation
-→ Analytics-Ready Tables 
+- sample ID
+- patient ID
+- study ID
+- sample type
+- cancer type
+- OncoTree code
+- mutation count
+- TMB
+- fraction genome altered
+- aneuploidy score
+- MSI measures
 
-## Day 4 — Mutation Data Ingestion and Profiling
+---
 
-### Goal
+# Day 4 — Mutation Data Ingestion and Profiling
+
+## Goal
 
 Retrieve and understand gene-level mutation data for the selected study.
 
-### Mutation Profile
+---
+
+## Mutation Profile
 
 Molecular profile:
 
 `brca_tcga_pan_can_atlas_2018_mutations`
 
-Mutation sample list:
+Type:
+
+`MUTATION_EXTENDED`
+
+Datatype:
+
+`MAF`
+
+---
+
+## Mutation Sample List
+
+Selected:
 
 `brca_tcga_pan_can_atlas_2018_sequenced`
 
-### Important API Finding
+This sample list represents samples profiled for mutation data.
 
-The normal GET mutation endpoint required an `entrezGeneId`, meaning it was designed for querying specific genes.
+Number of sequenced samples:
 
-To retrieve all mutations for the sequenced cohort, the POST fetch endpoint was used instead.
+`1,066`
 
-### Raw Mutation Data
+---
 
-The mutation API returned:
+## API Trial and Correction
 
-- 84,226 mutation records
-- 1,009 samples with at least one mutation record
-- 1,009 patients with at least one mutation record
-- 16,488 unique genes represented
+An initial GET mutation request was attempted.
 
-Raw data was saved to:
+The endpoint returned an error because:
+
+`entrezGeneId`
+
+was required.
+
+This revealed that the GET endpoint was designed for querying specific genes.
+
+The approach was corrected to use the POST mutation fetch endpoint:
+
+`/api/molecular-profiles/{profile}/mutations/fetch`
+
+This allowed mutation records to be retrieved across the sequenced cohort.
+
+---
+
+## Mutation Data Retrieval
+
+Created:
+
+`fetch_mutation_data.py`
+
+Output:
 
 `data/raw/mutation_data.json`
 
-### Mutation Coverage Validation
+Result:
 
-The mutation sample list contained:
+`84,226 mutation records`
 
-- 1,066 sequenced samples
+---
 
-Mutation records were returned for:
+## Mutation Profiling
 
-- 1,009 samples
+Created:
 
-Therefore:
+`profile_mutation_data.py`
 
-- 57 sequenced samples had no returned mutation records
+Results:
 
-This means:
+- 84,226 mutation records
+- 1,009 unique samples
+- 1,009 unique patients
+- 16,488 unique genes
 
-`sequenced sample ≠ sample with at least one mutation`
+---
 
-### Most Common Mutation Types
+## Most Common Mutation Types
 
 | Mutation Type | Records |
 |---|---:|
@@ -371,6 +717,43 @@ This means:
 | Splice Region | 1,402 |
 | Frame Shift Insertion | 913 |
 | In Frame Deletion | 653 |
+| Nonstop Mutation | 90 |
+| Translation Start Site | 87 |
+| In Frame Insertion | 50 |
+
+---
+
+## Mutation Coverage Validation
+
+Created:
+
+`validate_mutation_coverage.py`
+
+Results:
+
+- Sequenced samples: 1,066
+- Samples with mutation records: 1,009
+- Sequenced samples without mutation records: 57
+
+Important distinction:
+
+`sequenced sample ≠ sample with a mutation`
+
+A sequenced sample can have zero returned mutation calls.
+
+---
+
+## Patient-Level Gene Frequency
+
+Raw mutation-record count was initially used to rank genes.
+
+This was improved because one patient can contribute multiple mutation records for the same gene.
+
+Gene frequency was therefore calculated using unique:
+
+`patientId + gene`
+
+pairs.
 
 ### Most Frequently Mutated Genes by Patient
 
@@ -384,100 +767,349 @@ This means:
 | MUC16 | 109 |
 | KMT2C | 99 |
 | MAP3K1 | 89 |
-| PTEN | 58 |
+| RYR2 | 66 |
+| FLG | 66 |
 
-### Important Lesson
+Important lesson:
 
-Raw mutation-record counts are not the same as the number of patients carrying a mutation in a gene.
+**Raw mutation records and patients with a mutation are different metrics.**
 
-A patient may have multiple mutation records for the same gene.
+---
 
-Therefore, patient-level gene frequency was calculated using unique:
+# Mutation Analytics Transformation
 
-`patientId + gene`
+## Goal
 
-pairs.
-## Day 5 — Google Cloud Storage
+Convert nested raw mutation JSON into a clean tabular dataset for analytical SQL.
 
-### Goal
+Created:
 
-Move the raw biomedical data from the local machine into Google Cloud Storage and allow the Python application to upload files programmatically.
+`create_mutation_analytics.py`
 
-### Google Cloud Setup
+Input:
 
-Google Cloud CLI was installed and configured locally.
+`data/raw/mutation_data.json`
 
-Authentication was configured using:
+Output:
 
-- Google Cloud CLI authentication
-- Application Default Credentials (ADC)
+`data/processed/mutation_analytics.csv`
 
-ADC allows Python Google Cloud libraries to authenticate without storing credentials inside the project code.
+---
 
-### GCP Project
+## Mutation Analytics Result
 
-A Google Cloud project was created and configured as the active project.
+- 84,226 rows
+- 19 columns
+- 1,009 unique patients
+- 1,009 unique samples
+- 16,488 unique genes
 
-The project was also configured as the quota project for Application Default Credentials.
+Important fields include:
 
-### GCS Bucket
+- `patientId`
+- `sampleId`
+- `studyId`
+- `molecularProfileId`
+- `gene`
+- `entrezGeneId`
+- `mutationType`
+- `proteinChange`
+- chromosome
+- genomic position
+- reference allele
+- variant allele
+- read counts
 
-Created bucket:
+No aggregation was performed.
+
+One row still represents one mutation record.
+
+---
+
+## Mutation Analytics Validation
+
+Created:
+
+`validate_mutation_analytics.py`
+
+Results:
+
+- Raw mutation records: 84,226
+- Processed rows: 84,226
+- Processed columns: 19
+- Unique patients: 1,009
+- Unique samples: 1,009
+- Unique genes: 16,488
+
+Critical missing-value checks:
+
+- Missing `patientId`: 0
+- Missing `sampleId`: 0
+- Missing `gene`: 0
+- Missing `mutationType`: 0
+
+Row-count validation:
+
+`PASSED`
+
+---
+
+# Day 5 — Google Cloud Storage Exploration
+
+## Goal
+
+Explore how the local BioData Copilot pipeline could integrate with Google Cloud.
+
+---
+
+## Google Cloud Setup
+
+Google Cloud CLI was installed.
+
+A Google account was authenticated.
+
+A Google Cloud project was created.
+
+Application Default Credentials were configured for local Python development.
+
+---
+
+## Authentication Learning
+
+Three separate concepts became clearer.
+
+### Authentication
+
+Who are you?
+
+### Authorization
+
+What are you allowed to do?
+
+### Application Logic
+
+What operation should the program perform?
+
+ADC handled authentication.
+
+IAM controls authorization.
+
+The Python SDK performs actions such as uploading files.
+
+---
+
+## Raw GCS Bucket
+
+Created:
 
 `biodata-copilot-haneefa-raw`
 
 Configuration:
 
 - Region: `asia-south1`
-- Storage class: `STANDARD`
-- Uniform bucket-level access: enabled
+- Storage class: Standard
+- Uniform bucket-level access enabled
 
-### Raw Data Uploaded
+---
 
-The following files were uploaded:
+## Raw Files Uploaded
 
-- `raw/patient_clinical_data.json`
-- `raw/sample_clinical_data.json`
-- `raw/mutation_data.json`
+Uploaded:
+
+- `patient_clinical_data.json`
+- `sample_clinical_data.json`
+- `mutation_data.json`
 
 Total uploaded size:
 
-`106,711,324 bytes (~101.77 MiB)`
+`106,711,324 bytes`
 
-### Upload Validation
+Approximately:
 
-Local file sizes were compared with the files stored in GCS.
+`101.77 MiB`
 
-The total local size and GCS size both matched:
+---
+
+## Upload Validation
+
+The local file sizes were compared with GCS.
+
+Local total:
 
 `106,711,324 bytes`
 
-### Python GCS Integration
+GCS total:
 
-Added dependency:
+`106,711,324 bytes`
+
+The sizes matched.
+
+---
+
+## Python GCS Integration
+
+Installed:
 
 `google-cloud-storage`
 
 Created:
 
-`src/biodata_copilot/storage/upload_to_gcs.py`
+`upload_to_gcs.py`
 
-The script uses Application Default Credentials and uploads the raw files to the GCS bucket.
+The script demonstrated:
 
-### Important Lesson
+Python  
+→ ADC authentication  
+→ GCS client  
+→ bucket  
+→ blob/object  
+→ upload
 
-The Google Cloud Console, CLI and Python SDK can perform the same cloud operations in different ways.
+---
 
-For example:
+## Processed GCS Storage
 
-Console:
-Upload file manually
+A processed bucket was also created.
 
-CLI:
-`gcloud storage cp`
+Processed files uploaded included:
 
-Python:
-`blob.upload_from_filename()`
+- `patient_analytics.csv`
+- `sample_analytics.csv`
+- `mutation_analytics.csv`
 
-For an automated data pipeline, Python or another programmatic method is preferred over manually uploading files through the console.
-EOF
+Created:
+
+`upload_processed_to_gcs.py`
+
+---
+
+# Architecture Reassessment
+
+## Question
+
+Does BioData Copilot actually require GCP for V1?
+
+After reviewing the pipeline, the answer was:
+
+**No.**
+
+---
+
+## Why
+
+The current dataset is approximately:
+
+- 100 MB raw
+- 1,084 patients
+- 84,226 mutation records
+
+This data comfortably fits on a local machine.
+
+Most ingestion, validation, profiling, and transformation already occur locally.
+
+Using GCS and BigQuery as mandatory components would currently add infrastructure complexity without solving a real:
+
+- scalability problem
+- collaboration problem
+- deployment problem
+- availability requirement
+
+---
+
+## Decision
+
+BioData Copilot V1 will use a local-first architecture.
+
+Planned architecture:
+
+cBioPortal  
+→ Python ingestion  
+→ Local raw data  
+→ Validation and profiling  
+→ Python transformation  
+→ Processed analytical datasets  
+→ DuckDB  
+→ SQL analytics  
+→ Verified results  
+→ OpenAI  
+→ User interface
+
+---
+
+## GCP Status
+
+GCP is not being deleted from the project history.
+
+The cloud work remains documented as:
+
+**Cloud architecture exploration / optional Phase 2**
+
+Possible future architecture:
+
+cBioPortal  
+→ Cloud-hosted ingestion  
+→ GCS  
+→ BigQuery  
+→ SQL analytics  
+→ deployed application
+
+---
+
+# Current Processed Data
+
+The primary V1 analytical datasets are:
+
+| Dataset | Rows | Purpose |
+|---|---:|---|
+| `patient_analytics.csv` | 1,084 | Patient clinical information |
+| `sample_analytics.csv` | 1,084 | Sample/genomic summary information |
+| `mutation_analytics.csv` | 84,226 | Mutation-level records |
+
+Intermediate transformation datasets are also retained:
+
+- `patient_clinical_wide.csv`
+- `sample_clinical_wide.csv`
+
+---
+
+# Current Project Status
+
+| Stage | Status |
+|---|---|
+| Project setup | ✅ |
+| Dataset exploration | ✅ |
+| Dataset selection | ✅ |
+| Clinical ingestion | ✅ |
+| Clinical profiling | ✅ |
+| Clinical transformation | ✅ |
+| Clinical validation | ✅ |
+| Patient analytics | ✅ |
+| Sample analytics | ✅ |
+| Mutation ingestion | ✅ |
+| Mutation profiling | ✅ |
+| Mutation coverage validation | ✅ |
+| Mutation analytics | ✅ |
+| Mutation analytics validation | ✅ |
+| GCP/GCS exploration | ✅ |
+| Local analytical database | ⏳ |
+| SQL modeling | ⏳ |
+| AI explanation layer | ⏳ |
+| User interface | ⏳ |
+
+---
+
+# Next Step
+
+Introduce DuckDB as the local analytical database.
+
+Planned next steps:
+
+1. install DuckDB,
+2. create the local database,
+3. load `patient_analytics.csv`,
+4. load `sample_analytics.csv`,
+5. load `mutation_analytics.csv`,
+6. validate table row counts,
+7. begin SQL analytical modeling,
+8. create reusable analytical tables/views,
+9. connect verified SQL results to the LLM explanation layer.
