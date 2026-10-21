@@ -66,26 +66,24 @@ GCP was successfully explored but is not required for V1.
 | Mutation analytics dataset | ✅ |
 | Mutation analytics validation | ✅ |
 | GCP/GCS exploration | ✅ |
-| DuckDB analytical layer | ⏳ |
-| SQL analytical models | ⏳ |
+| DuckDB analytical database | ✅ |
+| Table-grain analysis | ✅ |
+| Initial SQL analytical models | ✅ |
+| V1 analytical question design | ⏳ |
 | OpenAI explanation layer | ⏳ |
 | User interface | ⏳ |
 
 ---
 
-# Selected Dataset
+# Dataset Selection
 
-Study ID:
+## Selected Study
 
-`brca_tcga_pan_can_atlas_2018`
+**Study ID:** `brca_tcga_pan_can_atlas_2018`
 
-Study:
+**Study:** Breast Invasive Carcinoma — TCGA PanCancer Atlas
 
-Breast Invasive Carcinoma — TCGA PanCancer Atlas
-
----
-
-# Why This Dataset
+## Why This Dataset
 
 The study provides broad:
 
@@ -100,7 +98,7 @@ The study provides broad:
 - protein information
 - structural variants
 
-The study was selected because it provides general-purpose clinical and molecular coverage rather than being focused on a single specialised research question.
+The study was selected because it provides general-purpose clinical and molecular coverage rather than being focused on one narrow research question.
 
 ---
 
@@ -145,6 +143,8 @@ Analytics:
 - 1,084 rows
 - 17 columns
 
+---
+
 ## Sample Clinical Data
 
 Raw:
@@ -177,7 +177,67 @@ Observed relationship:
 
 `1 patient → 1 sample`
 
-This simplifies future patient/sample joins.
+This simplifies joins between patient and sample data.
+
+Both identifiers are still retained because other biomedical datasets may have more complex relationships.
+
+---
+
+# Clinical Data Quality
+
+The raw clinical data contained:
+
+- 0 duplicate patient-attribute pairs
+- 0 duplicate sample-attribute pairs
+
+Patient-level completeness varied more than sample-level completeness.
+
+Missing values were retained unless there was a clear reason to transform them.
+
+Unusual values were also retained unless there was evidence that they were incorrect.
+
+---
+
+# Clinical Analytics Data
+
+The V1 clinical analytics datasets are:
+
+```text
+data/processed/
+├── patient_analytics.csv
+└── sample_analytics.csv
+```
+
+## Patient Analytics
+
+- 1,084 rows
+- 17 columns
+
+Contains fields such as:
+
+- age
+- sex
+- race
+- ethnicity
+- tumour stage
+- subtype
+- survival information
+- radiation therapy
+
+## Sample Analytics
+
+- 1,084 rows
+- 12 columns
+
+Contains fields such as:
+
+- sample type
+- cancer type
+- mutation count
+- TMB
+- fraction genome altered
+- aneuploidy score
+- MSI measures
 
 ---
 
@@ -234,9 +294,9 @@ Result:
 
 - 84,226 rows
 - 19 columns
-- 1,009 patients
-- 1,009 samples
-- 16,488 genes
+- 1,009 unique patients
+- 1,009 unique samples
+- 16,488 unique genes
 
 Critical-field validation:
 
@@ -249,13 +309,15 @@ Row-count validation:
 
 `PASSED`
 
+One row still represents one mutation record.
+
 ---
 
 # Important Mutation Finding
 
 Raw mutation-record counts are not the same as patient-level gene mutation counts.
 
-A patient can contribute multiple mutation records for the same gene.
+A patient can have multiple mutation records for the same gene.
 
 Therefore, patient-level gene frequency is calculated using unique:
 
@@ -265,11 +327,13 @@ pairs.
 
 Examples:
 
-- TP53: 347 patients
-- PIK3CA: 347 patients
-- TTN: 187 patients
-- CDH1: 130 patients
-- GATA3: 127 patients
+| Gene | Patients |
+|---|---:|
+| TP53 | 347 |
+| PIK3CA | 347 |
+| TTN | 187 |
+| CDH1 | 130 |
+| GATA3 | 127 |
 
 ---
 
@@ -311,7 +375,7 @@ Google Cloud was explored after the local processing layer had been built.
 
 ## Key Learning
 
-The same cloud operation can be performed through:
+The same GCS operation can be performed through:
 
 - Google Cloud Console
 - `gcloud` CLI
@@ -323,7 +387,7 @@ Authentication and authorization are separate concerns:
 
 `Authorization → What are you allowed to do?`
 
-ADC was used so Python could authenticate without storing credential files inside the repository.
+ADC allowed Python to authenticate without storing credential files inside the repository.
 
 ---
 
@@ -331,11 +395,22 @@ ADC was used so Python could authenticate without storing credential files insid
 
 After experimenting with GCP, the architecture was reassessed.
 
-The current dataset is small enough to process comfortably on a local machine.
+The current dataset is approximately:
+
+- 100 MB of raw data
+- 1,084 patients
+- 84,226 mutation records
+
+The dataset is small enough to process comfortably on a local machine.
 
 Most ingestion, validation, and transformation already occur locally.
 
-Therefore, making GCS and BigQuery mandatory would add complexity without currently solving a scale, collaboration, or deployment requirement.
+Therefore, making GCS and BigQuery mandatory would add complexity without currently solving a real:
+
+- scale problem
+- deployment problem
+- collaboration problem
+- availability requirement
 
 ## Decision
 
@@ -345,7 +420,7 @@ DuckDB will be used for the SQL analytical layer.
 
 GCP remains a possible Phase 2 deployment option.
 
-This follows the principle:
+The design principle is:
 
 `Problem → Requirements → Architecture → Technology`
 
@@ -355,28 +430,251 @@ rather than:
 
 ---
 
+# DuckDB Analytical Layer
+
+DuckDB was introduced as the local analytical database.
+
+Database:
+
+`data/biodata.duckdb`
+
+The generated database file is excluded from Git.
+
+Three processed datasets were loaded.
+
+| Table | Rows | Grain |
+|---|---:|---|
+| `patient_analytics` | 1,084 | One row per patient |
+| `sample_analytics` | 1,084 | One row per sample |
+| `mutation_analytics` | 84,226 | One row per mutation record |
+
+---
+
+# Table Grain
+
+Understanding table grain became an important part of the analytical design.
+
+## Patient Table
+
+`1 row = 1 patient`
+
+Results:
+
+- 1,084 rows
+- 1,084 unique patients
+- 0 duplicate patient IDs
+
+## Sample Table
+
+`1 row = 1 sample`
+
+Results:
+
+- 1,084 rows
+- 1,084 unique samples
+- 0 duplicate sample IDs
+
+## Mutation Table
+
+`1 row = 1 mutation record`
+
+Results:
+
+- 84,226 rows
+- 1,009 unique patients
+- 1,009 unique samples
+
+This means the relationship between patient and mutation data is:
+
+`1 patient → many mutation records`
+
+---
+
+# Patient–Sample Join
+
+Joining:
+
+`patient_analytics`
+
+with:
+
+`sample_analytics`
+
+using `patientId` produced:
+
+`1,084 rows`
+
+This confirms the observed one-to-one patient/sample relationship for this study.
+
+---
+
+# First SQL Analysis
+
+DuckDB SQL was used to calculate:
+
+- total patients
+- patients by subtype
+- average age by subtype
+- most frequently mutated genes
+- mutation-type distribution
+
+## Patient Distribution by Subtype
+
+| Subtype | Patients |
+|---|---:|
+| BRCA_LumA | 499 |
+| BRCA_LumB | 197 |
+| BRCA_Basal | 171 |
+| Missing | 103 |
+| BRCA_Her2 | 78 |
+| BRCA_Normal | 36 |
+
+---
+
+# Patient–Gene Analytical Model
+
+A reusable analytical model was created:
+
+`patient_gene_mutations`
+
+Its grain is:
+
+`1 row = 1 patient + 1 mutated gene`
+
+It combines:
+
+- patient ID
+- breast-cancer subtype
+- mutated gene
+
+Duplicate patient/gene combinations are removed using `DISTINCT`.
+
+Result:
+
+- 76,407 patient-gene combinations
+- 981 unique patients with known subtype
+
+---
+
+# Subtype–Gene Mutation Summary
+
+A second analytical model was created:
+
+`subtype_gene_mutation_summary`
+
+Its grain is:
+
+`1 row = 1 subtype + 1 gene`
+
+This model counts how many patients within each subtype have a mutation in each gene.
+
+---
+
+# Mutation Prevalence by Subtype
+
+Raw counts alone are difficult to compare because subtype sizes differ.
+
+Mutation prevalence was therefore calculated using:
+
+`mutated patients / total subtype patients`
+
+Examples from the selected dataset:
+
+| Subtype | Gene | Mutated Patients | Subtype Patients | Prevalence |
+|---|---|---:|---:|---:|
+| BRCA_Basal | TP53 | 153 | 171 | 89.47% |
+| BRCA_Her2 | TP53 | 55 | 78 | 70.51% |
+| BRCA_LumA | PIK3CA | 237 | 499 | 47.49% |
+| BRCA_LumB | TP53 | 71 | 197 | 36.04% |
+| BRCA_Normal | TP53 | 11 | 36 | 30.56% |
+
+These values describe the selected dataset only.
+
+They should not automatically be generalized to all breast-cancer populations.
+
+---
+
+# Mutation Burden by Subtype
+
+Patient and sample data were joined to compare:
+
+- TMB
+- mutation count
+
+across breast-cancer subtypes.
+
+| Subtype | Avg TMB | Median TMB | Avg Mutation Count | Median Mutation Count |
+|---|---:|---:|---:|---:|
+| BRCA_Basal | 3.35 | 2.37 | 96.36 | 66 |
+| BRCA_Her2 | 5.50 | 2.42 | 163.28 | 71 |
+| BRCA_LumA | 2.54 | 1.03 | 72.13 | 30 |
+| BRCA_LumB | 2.54 | 1.67 | 74.95 | 48 |
+| BRCA_Normal | 1.93 | 1.28 | 57.33 | 38 |
+
+The difference between average and median is important.
+
+For example, HER2 has:
+
+- average mutation count: 163.28
+- median mutation count: 71
+
+This suggests that high-value observations are pulling the mean upward.
+
+Therefore, both average and median should be considered when describing mutation burden.
+
+---
+
+# SQL Responsibilities
+
+SQL is now responsible for:
+
+- joins
+- aggregations
+- patient-level mutation counts
+- subtype comparisons
+- mutation prevalence
+- analytical summaries
+- reusable views
+
+Python remains responsible mainly for:
+
+- API ingestion
+- JSON handling
+- structural transformation
+- pipeline execution
+
+This creates a clearer separation of responsibilities.
+
+---
+
 # Key Lessons
 
 1. The biggest dataset is not automatically the best dataset.
 2. More columns do not automatically mean better data.
 3. Structured metadata is better than relying only on text search.
-4. Related cancer types may need hierarchy-based grouping.
+4. Related cancer types may require hierarchy-based grouping.
 5. Preserve raw source data before transformation.
-6. Validate transformations rather than assuming successful execution means correct data.
+6. Validate important transformations without creating unnecessary redundant checks.
 7. Missing values should not be filled without a reason.
 8. Outliers should not be removed without evidence.
 9. Raw mutation rows are different from patient-level mutation frequency.
-10. Python is useful for API and semi-structured data processing.
-11. SQL should handle analytical joins, aggregations, and marts.
-12. The LLM should explain verified facts rather than generate them.
-13. Cloud technology should be introduced only when it solves a real requirement.
-14. Distributed processing is unnecessary for the current dataset size.
+10. Table grain must be understood before joining datasets.
+11. `COUNT(*)` and `COUNT(DISTINCT patientId)` answer different questions.
+12. Raw counts should not be compared across groups of very different sizes without context.
+13. Percentages can provide better comparisons between differently sized groups.
+14. Average values can be strongly influenced by extreme observations.
+15. Median values provide useful complementary information.
+16. Python is useful for API and semi-structured data processing.
+17. SQL is useful for analytical modeling and reusable query logic.
+18. The LLM should explain verified facts rather than generate them.
+19. Cloud technology should be introduced only when it solves a real requirement.
+20. Distributed processing is unnecessary for the current dataset size.
 
 ---
 
 # V1 Scope
 
-Use:
+Current V1 uses:
 
 - Clinical data
 - Mutation data
@@ -387,28 +685,27 @@ Use:
 - OpenAI
 - Simple UI
 
-Not yet:
+Not currently included:
 
 - gene-expression analysis
 - methylation analysis
 - protein analysis
+- copy-number analysis
 - RAG
 - ML models
 - natural-language-to-SQL
 - Spark
-- production cloud deployment
+- mandatory cloud deployment
 
 ---
 
 # Current Next Step
 
-Introduce DuckDB as the local analytical database.
+Define the small set of analytical questions that BioData Copilot V1 will officially support.
 
-Next:
+The next phase will:
 
-1. create the local DuckDB database,
-2. load patient analytics,
-3. load sample analytics,
-4. load mutation analytics,
-5. validate table row counts,
-6. begin SQL analytical modeling.
+1. select 3–5 useful biomedical questions,
+2. create reusable SQL queries for those questions,
+3. return deterministic structured results,
+4. pass only those verified results to the OpenAI explanation layer.

@@ -22,7 +22,10 @@
 | `validate_mutation_analytics.py` | Validate mutation analytics output | Validation summary | Validation |
 | `upload_to_gcs.py` | Upload raw data to GCS | Raw GCS objects | Cloud Exploration |
 | `upload_processed_to_gcs.py` | Upload processed data to GCS | Processed GCS objects | Cloud Exploration |
-
+| `load_duckdb.py` | Load processed datasets into DuckDB | Local analytical database | Database |
+| `inspect_duckdb.py` | Inspect DuckDB table schemas | Schema summary | Database |
+| `validate_table_grain.py` | Confirm entity grain and relationships | Grain summary | Database |
+| `create_models.py` | Create reusable analytical views | Patient/gene models | SQL Modeling |
 ---
 
 ## `explore_studies.py`
@@ -581,3 +584,104 @@ The script demonstrated how pipeline outputs can be uploaded programmatically ra
 Cloud exploration / optional Phase 2.
 
 The current V1 architecture will continue locally using DuckDB.
+
+---
+
+## `load_duckdb.py`
+
+### Purpose
+
+Load the processed BioData Copilot datasets into the local DuckDB analytical database.
+
+### Inputs
+
+- `patient_analytics.csv`
+- `sample_analytics.csv`
+- `mutation_analytics.csv`
+
+### Output
+
+`data/biodata.duckdb`
+
+### Tables
+
+- `patient_analytics`
+- `sample_analytics`
+- `mutation_analytics`
+
+### Results
+
+- Patient rows: 1,084
+- Sample rows: 1,084
+- Mutation rows: 84,226
+
+---
+
+## `inspect_duckdb.py`
+
+### Purpose
+
+Inspect DuckDB table schemas and confirm the imported data types.
+
+### Main Finding
+
+DuckDB correctly inferred the main analytical types, including:
+
+- identifiers as `VARCHAR`
+- age and genomic positions as integer types
+- survival and TMB measures as numeric types
+- radiation therapy as Boolean
+
+---
+
+## `validate_table_grain.py`
+
+### Purpose
+
+Confirm the grain of the three main analytical tables.
+
+### Results
+
+`patient_analytics`
+
+`1 row = 1 patient`
+
+`sample_analytics`
+
+`1 row = 1 sample`
+
+`mutation_analytics`
+
+`1 row = 1 mutation record`
+
+The patient-to-sample join returned 1,084 rows, confirming the one-to-one relationship observed earlier.
+
+### Status
+
+This is an exploratory validation script and may later be merged or removed during project cleanup.
+
+---
+
+## `create_models.py`
+
+### Purpose
+
+Create reusable DuckDB analytical views combining clinical and genomic information.
+
+### Models
+
+`patient_gene_mutations`
+
+Grain:
+
+`1 patient + 1 gene`
+
+`subtype_gene_mutation_summary`
+
+Grain:
+
+`1 subtype + 1 gene`
+
+### Note
+
+During final cleanup, SQL model definitions will be kept in the `sql/` directory and Python execution code will be simplified to avoid duplicated SQL logic.

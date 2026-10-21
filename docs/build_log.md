@@ -1113,3 +1113,224 @@ Planned next steps:
 7. begin SQL analytical modeling,
 8. create reusable analytical tables/views,
 9. connect verified SQL results to the LLM explanation layer.
+
+# DuckDB Analytical Layer
+
+## Goal
+
+Introduce a local SQL analytical database and begin combining clinical and mutation data.
+
+DuckDB was selected because the current dataset is small enough to process comfortably on a single machine and the project mainly requires analytical SQL rather than transactional database features.
+
+---
+
+## DuckDB Setup
+
+Installed:
+
+`duckdb`
+
+Created local database:
+
+`data/biodata.duckdb`
+
+The database file is generated locally and excluded from Git.
+
+The following processed datasets were loaded:
+
+| Table | Rows | Grain |
+|---|---:|---|
+| `patient_analytics` | 1,084 | One row per patient |
+| `sample_analytics` | 1,084 | One row per sample |
+| `mutation_analytics` | 84,226 | One row per mutation record |
+
+---
+
+## Table Grain Validation
+
+### Patient Table
+
+- Total rows: 1,084
+- Unique patients: 1,084
+- Duplicate patient IDs: 0
+
+Grain:
+
+`1 row = 1 patient`
+
+### Sample Table
+
+- Total rows: 1,084
+- Unique samples: 1,084
+- Duplicate sample IDs: 0
+
+Grain:
+
+`1 row = 1 sample`
+
+### Mutation Table
+
+- Total mutation rows: 84,226
+- Unique patients: 1,009
+- Unique samples: 1,009
+
+Grain:
+
+`1 row = 1 mutation record`
+
+---
+
+## Patient–Sample Join
+
+Joining patient and sample data using `patientId` produced:
+
+`1,084 rows`
+
+This confirms the observed one-to-one patient/sample relationship for the selected study.
+
+---
+
+## Radiation Therapy Field
+
+DuckDB inferred `RADIATION_THERAPY` as a Boolean field.
+
+Observed values:
+
+- True: 549
+- False: 434
+- Missing: 101
+
+Missing values were retained rather than being interpreted as False.
+
+---
+
+## First SQL Analysis
+
+Initial SQL queries calculated:
+
+- total patient count
+- patient distribution by subtype
+- average age by subtype
+- most frequently mutated genes
+- mutation-type distribution
+
+### Patient Distribution by Subtype
+
+| Subtype | Patients |
+|---|---:|
+| BRCA_LumA | 499 |
+| BRCA_LumB | 197 |
+| BRCA_Basal | 171 |
+| Missing | 103 |
+| BRCA_Her2 | 78 |
+| BRCA_Normal | 36 |
+
+---
+
+## Most Frequently Mutated Genes
+
+Patient-level mutation frequency used:
+
+`COUNT(DISTINCT patientId)`
+
+rather than raw mutation-row count.
+
+Top examples:
+
+| Gene | Patients |
+|---|---:|
+| TP53 | 347 |
+| PIK3CA | 347 |
+| TTN | 187 |
+| CDH1 | 130 |
+| GATA3 | 127 |
+
+This reproduced the earlier Python profiling results and confirmed that the DuckDB analytical layer preserved the expected data.
+
+---
+
+## Patient–Gene Analytical Model
+
+Created:
+
+`patient_gene_mutations`
+
+Grain:
+
+`1 row = 1 patient + 1 mutated gene`
+
+The model combines:
+
+- patient subtype
+- patient ID
+- mutated gene
+
+Duplicate patient/gene mutation records are removed using `DISTINCT`.
+
+Result:
+
+- 76,407 patient-gene rows
+- 981 unique patients with known subtype
+
+---
+
+## Subtype–Gene Mutation Summary
+
+Created:
+
+`subtype_gene_mutation_summary`
+
+Grain:
+
+`1 row = 1 subtype + 1 gene`
+
+The model stores the number of patients in each subtype with a mutation in each gene.
+
+---
+
+## Mutation Prevalence by Subtype
+
+Raw mutation counts were converted into percentages because subtype sizes differ.
+
+Examples:
+
+| Subtype | Gene | Mutated Patients | Subtype Patients | Prevalence |
+|---|---|---:|---:|---:|
+| BRCA_Basal | TP53 | 153 | 171 | 89.47% |
+| BRCA_Her2 | TP53 | 55 | 78 | 70.51% |
+| BRCA_LumA | PIK3CA | 237 | 499 | 47.49% |
+| BRCA_LumB | TP53 | 71 | 197 | 36.04% |
+| BRCA_Normal | TP53 | 11 | 36 | 30.56% |
+
+These values describe the selected dataset and should not automatically be generalized beyond it.
+
+---
+
+## Mutation Burden by Subtype
+
+Patient and sample tables were joined to compare TMB and mutation count across subtypes.
+
+| Subtype | Avg TMB | Median TMB | Avg Mutation Count | Median Mutation Count |
+|---|---:|---:|---:|---:|
+| BRCA_Basal | 3.35 | 2.37 | 96.36 | 66 |
+| BRCA_Her2 | 5.50 | 2.42 | 163.28 | 71 |
+| BRCA_LumA | 2.54 | 1.03 | 72.13 | 30 |
+| BRCA_LumB | 2.54 | 1.67 | 74.95 | 48 |
+| BRCA_Normal | 1.93 | 1.28 | 57.33 | 38 |
+
+The difference between average and median, particularly for HER2, shows the effect of high-value observations on the mean.
+
+Therefore, both average and median are useful when describing mutation burden.
+
+---
+
+## Key Lessons
+
+- Table grain must be understood before performing joins.
+- Patient counts and mutation-row counts represent different things.
+- `COUNT(DISTINCT patientId)` is required for patient-level mutation frequency.
+- Raw counts should not be compared across groups of very different sizes without context.
+- Percentages allow more meaningful subtype comparisons.
+- Average values can be strongly influenced by outliers.
+- Median values provide a useful complementary measure.
+- SQL is now being used for analytical modeling rather than repeating Python transformations.

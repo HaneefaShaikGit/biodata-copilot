@@ -307,3 +307,34 @@ The current dataset is approximately:
 This scale does not require distributed processing or a managed cloud warehouse.
 
 Therefore, BioData Copilot V1 uses a local-first architecture while keeping GCP as an optional future extension.
+
+cBioPortal
+    ↓
+Python ingestion
+    ↓
+Raw JSON
+    ↓
+Validation + transformation
+    ↓
+Processed CSVs
+    ↓
+DuckDB ✅
+    ↓
+SQL analytical models ✅
+    ↓
+Verified analytical results
+    ↓
+OpenAI ⏳
+    ↓
+User Interface ⏳
+
+# Current Next Step
+
+Define the small set of analytical questions that BioData Copilot V1 will officially support.
+
+The next phase will:
+
+1. select 3–5 useful biomedical questions,
+2. create reusable SQL queries for those questions,
+3. return deterministic structured results,
+4. pass only those verified results to the OpenAI explanation layer.
