@@ -1334,3 +1334,153 @@ Therefore, both average and median are useful when describing mutation burden.
 - Average values can be strongly influenced by outliers.
 - Median values provide a useful complementary measure.
 - SQL is now being used for analytical modeling rather than repeating Python transformations.
+# Grounded AI Explanation Layer
+
+## Goal
+
+Connect verified DuckDB SQL results to OpenAI so that BioData Copilot can explain analytical results without allowing the LLM to calculate or invent the underlying numbers.
+
+---
+
+## Official V1 Questions
+
+Five predefined analytical questions were selected for BioData Copilot V1:
+
+1. How are patients distributed across breast cancer subtypes?
+2. Which genes are most frequently mutated?
+3. Which genes are most frequently mutated within each breast cancer subtype?
+4. How does mutation burden differ across breast cancer subtypes?
+5. How complete are the important clinical fields in the dataset?
+
+Each question has a dedicated SQL file under:
+
+`sql/questions/`
+
+---
+
+## SQL Question Layer
+
+Created:
+
+- `01_subtype_distribution.sql`
+- `02_top_mutated_genes.sql`
+- `03_top_genes_by_subtype.sql`
+- `04_mutation_burden_by_subtype.sql`
+- `05_data_completeness.sql`
+
+These queries return deterministic analytical results from DuckDB.
+
+The LLM does not generate the SQL calculations.
+
+---
+
+## Generic SQL Runner
+
+Created:
+
+`run_sql.py`
+
+The script accepts a SQL file path, executes the query against:
+
+`data/biodata.duckdb`
+
+and returns the result.
+
+This avoids creating separate Python scripts for every analytical question.
+
+---
+
+## Question Registry
+
+Created:
+
+`questions.py`
+
+The registry maps each supported user question to its SQL file.
+
+Example flow:
+
+User selects question  
+→ question registry  
+→ SQL file  
+→ DuckDB  
+→ verified result
+
+This keeps the application logic separate from analytical SQL.
+
+---
+
+## OpenAI Integration
+
+Installed:
+
+- `openai`
+- `python-dotenv`
+
+An `.env` file is used locally for:
+
+`OPENAI_API_KEY`
+
+The `.env` file is excluded from Git.
+
+---
+
+## Grounded Explanation Flow
+
+The final explanation flow is:
+
+User question  
+→ predefined SQL query  
+→ DuckDB  
+→ verified dataframe  
+→ OpenAI  
+→ natural-language explanation
+
+The LLM receives only the verified SQL result and the question.
+
+---
+
+## Grounding Rules
+
+The OpenAI prompt instructs the model to:
+
+- use only the supplied SQL result,
+- not invent numerical values,
+- state that results describe the selected dataset,
+- avoid causal claims,
+- avoid diagnosis,
+- avoid treatment recommendations,
+- explain the main patterns clearly.
+
+---
+
+## First Successful End-to-End Test
+
+Question:
+
+`How are patients distributed across breast cancer subtypes?`
+
+Verified SQL result:
+
+| Subtype | Patients | Percentage |
+|---|---:|---:|
+| BRCA_LumA | 499 | 46.03% |
+| BRCA_LumB | 197 | 18.17% |
+| BRCA_Basal | 171 | 15.77% |
+| Unknown | 103 | 9.50% |
+| BRCA_Her2 | 78 | 7.20% |
+| BRCA_Normal | 36 | 3.32% |
+
+The OpenAI explanation reproduced the verified numbers and summarized that LumA was the largest subtype group in the selected dataset.
+
+---
+
+## Key Design Principle
+
+BioData Copilot does not use the LLM as the analytical engine.
+
+Instead:
+
+`SQL calculates → OpenAI explains`
+
+This reduces the risk of hallucinated dataset-specific facts and keeps analytical results independently verifiable.

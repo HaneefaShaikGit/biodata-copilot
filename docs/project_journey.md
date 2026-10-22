@@ -699,6 +699,97 @@ Not currently included:
 
 ---
 
+# Grounded AI Layer
+
+The SQL analytical layer was converted into a small set of official BioData Copilot questions.
+
+## Supported V1 Questions
+
+1. Patient distribution across breast-cancer subtypes
+2. Most frequently mutated genes
+3. Most frequently mutated genes within each subtype
+4. Mutation burden and TMB across subtypes
+5. Clinical-field completeness
+
+Each question maps to a predefined SQL file.
+
+---
+
+## Application Flow
+
+```text
+User selects question
+        ↓
+Question registry
+        ↓
+Predefined SQL query
+        ↓
+DuckDB
+        ↓
+Verified analytical result
+        ↓
+OpenAI
+        ↓
+Grounded explanation
+```
+
+The LLM never receives responsibility for calculating the underlying dataset statistics.
+
+---
+
+## First End-to-End Result
+
+The first successful grounded question was:
+
+`How are patients distributed across breast cancer subtypes?`
+
+DuckDB calculated the subtype counts and percentages.
+
+OpenAI then explained the verified result without changing the numbers.
+
+This completed the first working version of:
+
+`data → SQL → verified result → AI explanation`
+
+---
+
+## Current Architecture Status
+
+```text
+cBioPortal
+    ↓
+Python ingestion
+    ↓
+Raw JSON
+    ↓
+Validation + transformation
+    ↓
+Processed analytics data
+    ↓
+DuckDB
+    ↓
+SQL questions ✅
+    ↓
+Verified results ✅
+    ↓
+OpenAI explanations ✅
+    ↓
+User interface ⏳
+```
+
+# Current Next Step
+
+Build the BioData Copilot user interface.
+
+The UI should allow the user to:
+
+1. choose one of the supported analytical questions,
+2. run the corresponding SQL query,
+3. view the verified analytical result,
+4. view the grounded AI explanation.
+
+The interface should remain simple for V1 and should not introduce unrestricted natural-language-to-SQL.
+
 # Current Next Step
 
 Define the small set of analytical questions that BioData Copilot V1 will officially support.

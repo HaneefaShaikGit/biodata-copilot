@@ -26,6 +26,9 @@
 | `inspect_duckdb.py` | Inspect DuckDB table schemas | Schema summary | Database |
 | `validate_table_grain.py` | Confirm entity grain and relationships | Grain summary | Database |
 | `create_models.py` | Create reusable analytical views | Patient/gene models | SQL Modeling |
+| `run_sql.py` | Execute any analytical SQL file | Verified query result | Analytics |
+| `questions.py` | Map supported questions to SQL files | Question registry | Application |
+| `explain_query.py` | Explain verified SQL results with OpenAI | Grounded explanation | AI |
 ---
 
 ## `explore_studies.py`
@@ -685,3 +688,80 @@ Grain:
 ### Note
 
 During final cleanup, SQL model definitions will be kept in the `sql/` directory and Python execution code will be simplified to avoid duplicated SQL logic.
+---
+
+## `run_sql.py`
+
+### Purpose
+
+Provide one generic Python runner for executing SQL files against DuckDB.
+
+### Input
+
+Path to a SQL file.
+
+Example:
+
+`sql/questions/01_subtype_distribution.sql`
+
+### Database
+
+`data/biodata.duckdb`
+
+### Why
+
+Using one generic runner avoids creating a separate Python script for each analytical question.
+
+---
+
+## `questions.py`
+
+### Purpose
+
+Maintain the official BioData Copilot V1 question registry.
+
+Each question maps to its corresponding SQL file.
+
+### Supported Questions
+
+- subtype distribution
+- top mutated genes
+- top genes by subtype
+- mutation burden by subtype
+- clinical-data completeness
+
+### Why
+
+The registry separates user-facing questions from SQL implementation details and will later be used directly by the UI.
+
+---
+
+## `explain_query.py`
+
+### Purpose
+
+Run a selected analytical question and send the verified SQL result to OpenAI for explanation.
+
+### Flow
+
+Question selection  
+→ SQL file  
+→ DuckDB  
+→ verified dataframe  
+→ OpenAI  
+→ grounded explanation
+
+### Grounding Rules
+
+The LLM is instructed to:
+
+- use only the verified result,
+- not invent numbers,
+- avoid causal claims,
+- avoid diagnosis,
+- avoid treatment recommendations,
+- clearly state that findings describe the selected dataset.
+
+### Result
+
+The first end-to-end grounded AI question successfully returned the same subtype counts and percentages produced by DuckDB.
