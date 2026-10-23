@@ -1484,3 +1484,54 @@ Instead:
 `SQL calculates → OpenAI explains`
 
 This reduces the risk of hallucinated dataset-specific facts and keeps analytical results independently verifiable.
+# Streamlit User Interface
+
+## Goal
+
+Provide a simple presentation layer for BioData Copilot without turning the project into a frontend-heavy application.
+
+## Implementation
+
+Streamlit was added as the V1 interface.
+
+Created:
+
+- `src/biodata_copilot/ai/copilot.py`
+- `app/app.py`
+
+The UI allows the user to:
+
+1. select one of the supported biomedical questions,
+2. run the corresponding SQL query,
+3. view the verified DuckDB result,
+4. view the grounded OpenAI explanation.
+
+## Application Flow
+
+User
+→ Streamlit
+→ Question Registry
+→ SQL
+→ DuckDB
+→ Verified Result
+→ OpenAI
+→ Grounded Explanation
+
+## Design Decision
+
+The UI is intentionally lightweight.
+
+The project remains focused on:
+
+- data ingestion,
+- validation,
+- transformation,
+- analytical modeling,
+- SQL,
+- grounded AI.
+
+The UI exists only to make the data product easier to demonstrate and use.
+
+## Result
+
+The end-to-end BioData Copilot V1 workflow was successfully tested through the browser.

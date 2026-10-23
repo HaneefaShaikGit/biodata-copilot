@@ -800,3 +800,20 @@ The next phase will:
 2. create reusable SQL queries for those questions,
 3. return deterministic structured results,
 4. pass only those verified results to the OpenAI explanation layer.
+
+| V1 analytical question design | ✅ |
+| OpenAI explanation layer | ✅ |
+| Streamlit user interface | ✅ |
+
+# Current Next Step
+
+Clean and polish BioData Copilot V1.
+
+Remaining work:
+
+1. remove redundant scripts and duplicated SQL,
+2. simplify the project structure,
+3. perform final end-to-end testing,
+4. improve README documentation,
+5. add architecture and demo screenshots,
+6. prepare the repository for GitHub and portfolio use.

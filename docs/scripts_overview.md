@@ -29,6 +29,8 @@
 | `run_sql.py` | Execute any analytical SQL file | Verified query result | Analytics |
 | `questions.py` | Map supported questions to SQL files | Question registry | Application |
 | `explain_query.py` | Explain verified SQL results with OpenAI | Grounded explanation | AI |
+| `copilot.py` | Run SQL and generate grounded AI explanation | Verified result + explanation | Application |
+| `app.py` | Streamlit interface for BioData Copilot | Interactive UI | User Interface |
 ---
 
 ## `explore_studies.py`
