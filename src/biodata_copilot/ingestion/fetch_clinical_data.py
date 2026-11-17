@@ -1,61 +1,51 @@
 import json
+from pathlib import Path
+
 import requests
 
 
-study_id = "brca_tcga_pan_can_atlas_2018"
+STUDY_ID = "brca_tcga_pan_can_atlas_2018"
+API_URL = f"https://www.cbioportal.org/api/studies/{STUDY_ID}/clinical-data"
 
-base_url = (
-    f"https://www.cbioportal.org/api/studies/"
-    f"{study_id}/clinical-data"
-)
+RAW_DATA_DIR = Path("data/raw")
 
 
-clinical_data_types = [
-    "PATIENT",
-    "SAMPLE",
-]
-
-
-for data_type in clinical_data_types:
-
-    url = f"{base_url}?clinicalDataType={data_type}"
-
-    response = requests.get(url, timeout=30)
+def fetch_clinical_data(data_type):
+    response = requests.get(
+        API_URL,
+        params={"clinicalDataType": data_type},
+        timeout=30,
+    )
     response.raise_for_status()
 
-    clinical_data = response.json()
+    return response.json()
 
-    print(f"\n{data_type} DATA")
-    print("Total clinical records:", len(clinical_data))
 
-    attribute_ids = set()
+def save_json(data, output_file):
+    RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-    for record in clinical_data:
-        attribute_ids.add(record["clinicalAttributeId"])
+    with output_file.open("w", encoding="utf-8") as file:
+        json.dump(data, file, indent=2)
 
-    print("Unique clinical attributes:", len(attribute_ids))
 
-    if data_type == "PATIENT":
-        patient_ids = set()
+def main():
+    patient_data = fetch_clinical_data("PATIENT")
+    sample_data = fetch_clinical_data("SAMPLE")
 
-        for record in clinical_data:
-            patient_ids.add(record["patientId"])
+    save_json(
+        patient_data,
+        RAW_DATA_DIR / "patient_clinical_data.json",
+    )
 
-        print("Unique patients:", len(patient_ids))
+    save_json(
+        sample_data,
+        RAW_DATA_DIR / "sample_clinical_data.json",
+    )
 
-        output_file = "data/raw/patient_clinical_data.json"
+    print(f"Patient clinical records: {len(patient_data)}")
+    print(f"Sample clinical records: {len(sample_data)}")
+    print("Clinical data saved to data/raw/")
 
-    else:
-        sample_ids = set()
 
-        for record in clinical_data:
-            sample_ids.add(record["sampleId"])
-
-        print("Unique samples:", len(sample_ids))
-
-        output_file = "data/raw/sample_clinical_data.json"
-
-    with open(output_file, "w") as file:
-        json.dump(clinical_data, file, indent=2)
-
-    print("Raw data saved to:", output_file)
+if __name__ == "__main__":
+    main()

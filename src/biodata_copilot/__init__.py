@@ -1,2 +1,1 @@
-def main() -> None:
-    print("Hello from biodata-copilot!")
+"""BioData Copilot package."""

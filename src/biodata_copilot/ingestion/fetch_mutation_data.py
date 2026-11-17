@@ -1,43 +1,48 @@
 import json
+from pathlib import Path
+
 import requests
 
 
-molecular_profile_id = "brca_tcga_pan_can_atlas_2018_mutations"
-sample_list_id = "brca_tcga_pan_can_atlas_2018_sequenced"
+MOLECULAR_PROFILE_ID = "brca_tcga_pan_can_atlas_2018_mutations"
+SAMPLE_LIST_ID = "brca_tcga_pan_can_atlas_2018_sequenced"
 
-
-url = (
-    f"https://www.cbioportal.org/api/molecular-profiles/"
-    f"{molecular_profile_id}/mutations/fetch"
+API_URL = (
+    "https://www.cbioportal.org/api/molecular-profiles/"
+    f"{MOLECULAR_PROFILE_ID}/mutations/fetch"
 )
 
-
-request_body = {
-    "sampleListId": sample_list_id
-}
+OUTPUT_FILE = Path("data/raw/mutation_data.json")
 
 
-response = requests.post(
-    url,
-    params={"projection": "DETAILED"},
-    json=request_body,
-    timeout=60,
-)
+def fetch_mutation_data():
+    response = requests.post(
+        API_URL,
+        params={"projection": "DETAILED"},
+        json={"sampleListId": SAMPLE_LIST_ID},
+        timeout=60,
+    )
 
-response.raise_for_status()
+    response.raise_for_status()
 
-
-mutation_data = response.json()
-
-
-print("Total mutation records:", len(mutation_data))
+    return response.json()
 
 
-output_file = "data/raw/mutation_data.json"
+def save_json(data):
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    with OUTPUT_FILE.open("w", encoding="utf-8") as file:
+        json.dump(data, file, indent=2)
 
 
-with open(output_file, "w") as file:
-    json.dump(mutation_data, file, indent=2)
+def main():
+    mutation_data = fetch_mutation_data()
+
+    save_json(mutation_data)
+
+    print(f"Mutation records: {len(mutation_data)}")
+    print(f"Mutation data saved to {OUTPUT_FILE}")
 
 
-print("Raw mutation data saved to:", output_file)
+if __name__ == "__main__":
+    main()

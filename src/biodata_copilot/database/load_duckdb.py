@@ -1,59 +1,41 @@
+from pathlib import Path
+
 import duckdb
 
 
-database_path = "data/biodata.duckdb"
-
-connection = duckdb.connect(database_path)
-
-
-connection.execute("""
-    CREATE OR REPLACE TABLE patient_analytics AS
-    SELECT *
-    FROM read_csv_auto(
-        'data/processed/patient_analytics.csv',
-        header=True
-    )
-""")
+DATABASE_PATH = Path("data/biodata.duckdb")
+PROCESSED_DIR = Path("data/processed")
 
 
-connection.execute("""
-    CREATE OR REPLACE TABLE sample_analytics AS
-    SELECT *
-    FROM read_csv_auto(
-        'data/processed/sample_analytics.csv',
-        header=True
-    )
-""")
+TABLES = {
+    "patient_analytics": "patient_analytics.csv",
+    "sample_analytics": "sample_analytics.csv",
+    "mutation_analytics": "mutation_analytics.csv",
+}
 
 
-connection.execute("""
-    CREATE OR REPLACE TABLE mutation_analytics AS
-    SELECT *
-    FROM read_csv_auto(
-        'data/processed/mutation_analytics.csv',
-        header=True
-    )
-""")
+def load_tables():
+    connection = duckdb.connect(str(DATABASE_PATH))
+
+    for table_name, file_name in TABLES.items():
+        csv_path = PROCESSED_DIR / file_name
+
+        connection.execute(
+            f"""
+            CREATE OR REPLACE TABLE {table_name} AS
+            SELECT *
+            FROM read_csv_auto('{csv_path}', header=True)
+            """
+        )
+
+    connection.close()
 
 
-print("DUCKDB TABLE LOAD")
-print("-" * 40)
+def main():
+    load_tables()
 
-tables = [
-    "patient_analytics",
-    "sample_analytics",
-    "mutation_analytics",
-]
-
-for table in tables:
-    row_count = connection.execute(
-        f"SELECT COUNT(*) FROM {table}"
-    ).fetchone()[0]
-
-    print(f"{table}: {row_count} rows")
+    print(f"DuckDB database created at {DATABASE_PATH}")
 
 
-connection.close()
-
-print()
-print(f"Database created: {database_path}")
+if __name__ == "__main__":
+    main()

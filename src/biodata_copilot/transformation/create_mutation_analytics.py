@@ -1,20 +1,14 @@
 import json
+from pathlib import Path
 
 import pandas as pd
 
 
-input_file = "data/raw/mutation_data.json"
-output_file = "data/processed/mutation_analytics.csv"
+INPUT_FILE = Path("data/raw/mutation_data.json")
+OUTPUT_FILE = Path("data/processed/mutation_analytics.csv")
 
 
-with open(input_file, "r") as file:
-    mutation_data = json.load(file)
-
-
-df = pd.json_normalize(mutation_data)
-
-
-columns_to_keep = [
+COLUMNS = [
     "patientId",
     "sampleId",
     "studyId",
@@ -37,26 +31,37 @@ columns_to_keep = [
 ]
 
 
-mutation_analytics = df[columns_to_keep].copy()
+def create_mutation_analytics():
+    with INPUT_FILE.open("r", encoding="utf-8") as file:
+        mutation_data = json.load(file)
+
+    df = pd.json_normalize(mutation_data)
+
+    mutation_analytics = df[COLUMNS].copy()
+
+    mutation_analytics = mutation_analytics.rename(
+        columns={
+            "gene.hugoGeneSymbol": "gene",
+            "gene.entrezGeneId": "entrezGeneId",
+        }
+    )
+
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+    mutation_analytics.to_csv(
+        OUTPUT_FILE,
+        index=False,
+    )
+
+    return mutation_analytics
 
 
-mutation_analytics = mutation_analytics.rename(
-    columns={
-        "gene.hugoGeneSymbol": "gene",
-        "gene.entrezGeneId": "entrezGeneId",
-    }
-)
+def main():
+    mutation_analytics = create_mutation_analytics()
+
+    print(f"Mutation analytics: {mutation_analytics.shape}")
+    print(f"Saved to {OUTPUT_FILE}")
 
 
-mutation_analytics.to_csv(output_file, index=False)
-
-
-print("MUTATION ANALYTICS TABLE")
-print("-" * 40)
-print(f"Rows: {len(mutation_analytics)}")
-print(f"Columns: {len(mutation_analytics.columns)}")
-print(f"Unique patients: {mutation_analytics['patientId'].nunique()}")
-print(f"Unique samples: {mutation_analytics['sampleId'].nunique()}")
-print(f"Unique genes: {mutation_analytics['gene'].nunique()}")
-print()
-print(f"Saved to: {output_file}")
+if __name__ == "__main__":
+    main()
