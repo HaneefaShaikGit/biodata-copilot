@@ -1,86 +1,77 @@
 # BioData Copilot — Architecture
 
-## V1 Data Flow
+## Overview
+
+BioData Copilot is designed around a simple principle:
+
+> **SQL calculates dataset-specific facts. The LLM explains verified results.**
+
+The system intentionally separates:
+
+- data ingestion,
+- structural transformation,
+- analytical computation,
+- AI explanation,
+- and presentation.
+
+This keeps the numerical logic reproducible and reviewable instead of asking the language model to perform every analytical step itself.
+
+---
+
+## V1 Architecture
 
 ```mermaid
 flowchart TD
-    A[Public Biomedical Source] --> B[REST API]
-    B --> C[Python Ingestion]
-    C --> D[Local Raw JSON]
-    D --> E[Validation and Profiling]
-    E --> F[Python Transformation]
-    F --> G[Processed Analytical Data]
-    G --> H[DuckDB]
-    H --> I[SQL Analytics]
-    I --> J[Verified Query Result]
-    J --> K[OpenAI]
-    K --> L[Grounded Explanation]
-    L --> M[User]
+    A[cBioPortal REST API] --> B[Python Ingestion]
+    B --> C[Raw JSON]
+    C --> D[Python + Pandas Transformation]
+    D --> E[Processed Analytics Data]
+    E --> F[DuckDB]
+    F --> G[Predefined SQL Questions]
+    G --> H[Verified Analytical Result]
+    H --> I[OpenAI]
+    I --> J[Grounded Explanation]
+    H --> K[Streamlit UI]
+    J --> K
 ```
-
-## Architecture Principle
-
-BioData Copilot separates data processing from AI explanation.
-
-The analytical layer calculates dataset-specific facts.
-
-The LLM explains those verified facts.
-
-The LLM is not responsible for calculating patient counts, mutation frequencies, survival statistics, or other numerical results.
 
 ---
 
 ## Component Responsibilities
 
-### Public Biomedical Source
+### cBioPortal
 
-cBioPortal provides the original biomedical data used by the project.
+cBioPortal is the public biomedical data source.
 
 The selected study is:
 
 `brca_tcga_pan_can_atlas_2018`
 
-The V1 project uses:
+V1 uses:
 
-- clinical data
-- mutation data
-
----
-
-### REST API
-
-The cBioPortal REST API provides structured access to:
-
-- study metadata
-- clinical attributes
-- patient clinical data
-- sample clinical data
-- molecular profiles
-- mutation records
-
-The API returns data primarily in JSON format.
+- clinical data,
+- mutation data.
 
 ---
 
 ### Python Ingestion
 
-Python communicates with the cBioPortal API and retrieves source data.
+Python retrieves data from the cBioPortal REST API.
 
 Responsibilities include:
 
-- API requests
-- HTTP error handling
-- JSON parsing
-- saving raw source data
-- selecting appropriate API endpoints
+- API requests,
+- HTTP error handling,
+- JSON parsing,
+- saving the original API responses.
 
-Raw data is preserved before transformation.
+Raw source data is preserved before transformation.
 
 ---
 
-### Local Raw Storage
+### Raw Data Layer
 
-Raw API responses are stored locally under:
+Raw API responses are stored under:
 
 `data/raw/`
 
@@ -90,251 +81,269 @@ Examples:
 - `sample_clinical_data.json`
 - `mutation_data.json`
 
-The raw layer preserves the source data so transformations can be reproduced or investigated later.
+This layer exists for:
+
+- traceability,
+- reproducibility,
+- debugging,
+- rebuilding downstream datasets.
 
 ---
 
-### Validation and Profiling
+### Python + Pandas Transformation
 
-Python validation scripts inspect the source data before analytical transformation.
+Python and pandas handle structural transformations before analytical SQL.
 
-Checks include:
+Clinical data is converted from long format:
 
-- row counts
-- unique entity counts
-- duplicate detection
-- attribute completeness
-- patient/sample relationships
-- mutation coverage
-- missing critical identifiers
-- value distributions
-- unusual values and outliers
+`patientId | clinicalAttributeId | value`
 
-The purpose is to understand the data before modifying it.
+into wide analytical structures such as:
 
----
+`patientId | AGE | SEX | SUBTYPE | OS_MONTHS | ...`
 
-### Python Transformation
+Nested mutation JSON is flattened into tabular mutation records.
 
-Python and pandas handle structural transformations that are easier to perform before SQL analysis.
+The main outputs are:
 
-Examples include:
-
-- converting long clinical data into wide format
-- flattening nested mutation JSON
-- selecting V1-relevant fields
-- creating analytical CSV datasets
-
-The main processed outputs are:
-
-`data/processed/patient_analytics.csv`
-
-`data/processed/sample_analytics.csv`
-
-`data/processed/mutation_analytics.csv`
+- `patient_analytics.csv`
+- `sample_analytics.csv`
+- `mutation_analytics.csv`
 
 ---
 
-### DuckDB
+## Data Model
 
-DuckDB will act as the analytical database for V1.
+The three analytical datasets have different grains.
 
-It will store or query the processed datasets and provide the SQL analytical layer.
+### Patient Analytics
 
-DuckDB was selected because the current dataset is small enough to process comfortably on a single machine.
+`1 row = 1 patient`
+
+### Sample Analytics
+
+`1 row = 1 biological sample`
+
+### Mutation Analytics
+
+`1 row = 1 mutation record`
+
+For the selected study, the observed relationship is:
+
+```text
+Patient
+   |
+   | 1 : 1
+   v
+Sample
+
+Patient
+   |
+   | 1 : many
+   v
+Mutation records
+```
+
+Understanding grain is important because incorrect joins can inflate patient counts.
+
+For patient-level gene analysis, mutation rows are therefore evaluated using unique patient-gene combinations where appropriate.
+
+---
+
+## DuckDB
+
+DuckDB is the V1 analytical database.
+
+Processed CSVs are loaded into:
+
+- `patient_analytics`
+- `sample_analytics`
+- `mutation_analytics`
+
+DuckDB was selected because the current dataset is small enough to process comfortably on one machine while still providing a full SQL analytical layer.
 
 The project does not currently require a managed cloud warehouse.
 
 ---
 
-### SQL Analytics
+## SQL Analytics
 
-SQL will be responsible for analytical modeling.
+SQL is responsible for deterministic analytical calculations.
+
+The current V1 question set includes:
+
+1. patient distribution across breast-cancer subtypes,
+2. most frequently mutated genes,
+3. most frequently mutated genes within each subtype,
+4. mutation burden and TMB across subtypes,
+5. clinical-field completeness.
+
+Each supported question maps to a reviewed SQL file under:
+
+`sql/questions/`
+
+This means the LLM is not responsible for dynamically generating the underlying numerical analysis.
+
+---
+
+## Verified Analytical Result
+
+DuckDB executes the SQL query and returns the trusted analytical result.
 
 Examples include:
 
-- patient and sample joins
-- patient and mutation joins
-- subtype summaries
-- mutation-frequency calculations
-- gene-level patient counts
-- survival summaries
-- reusable analytical views or tables
+- patient counts,
+- percentages,
+- mutation frequencies,
+- subtype-level comparisons,
+- mutation burden,
+- completeness metrics.
 
-SQL produces deterministic results that can be verified independently of the LLM.
-
----
-
-### Verified Query Result
-
-The output of SQL becomes the trusted analytical result.
-
-Examples:
-
-- number of patients in each subtype
-- patients with TP53 mutations
-- most frequently mutated genes
-- mutation frequencies by subtype
-- average age by clinical group
-
-These verified results become the input to the AI explanation layer.
+These results are produced before the LLM is called.
 
 ---
 
-### OpenAI
+## OpenAI Explanation Layer
 
-OpenAI explains verified analytical results in natural language.
+OpenAI receives:
 
-Its responsibilities include:
+1. the supported user question,
+2. the verified SQL result.
 
-- explaining results clearly
-- summarizing patterns
-- providing context
-- distinguishing observations from stronger interpretations
+The model is instructed to:
 
-OpenAI should not invent dataset-specific numerical facts.
+- use only the supplied analytical result,
+- avoid inventing numerical values,
+- state that findings describe the selected dataset,
+- avoid causal claims,
+- avoid diagnosis,
+- avoid treatment recommendations.
 
----
-
-### User Interface
-
-The user interface will allow a student or researcher to explore supported biomedical questions.
-
-The interface will display:
-
-- analytical results
-- summaries
-- grounded AI explanations
-
-V1 will support a limited set of predefined analytical questions rather than unrestricted natural-language-to-SQL.
+The purpose of the LLM is explanation, not analytical computation.
 
 ---
 
-## Data Layers
+## Streamlit Interface
 
-The project uses three main local data layers.
+Streamlit provides a lightweight V1 interface.
 
-### Raw Layer
+The user can:
 
-Original API responses.
+1. select a supported analytical question,
+2. run the corresponding SQL query,
+3. view the verified result,
+4. view the grounded AI explanation.
 
-Examples:
-
-`patient_clinical_data.json`
-
-`sample_clinical_data.json`
-
-`mutation_data.json`
-
-### Intermediate Layer
-
-Structurally transformed datasets retained for traceability.
-
-Examples:
-
-`patient_clinical_wide.csv`
-
-`sample_clinical_wide.csv`
-
-### Analytics Layer
-
-Curated datasets used by the analytical database.
-
-Examples:
-
-`patient_analytics.csv`
-
-`sample_analytics.csv`
-
-`mutation_analytics.csv`
+V1 intentionally does not provide unrestricted natural-language-to-SQL.
 
 ---
 
-## Optional Cloud Architecture
+## Data Quality
 
-Google Cloud was explored during development.
+Exploratory profiling was used during development to understand:
 
-The following components were successfully tested:
+- duplicates,
+- missing values,
+- patient/sample relationships,
+- mutation coverage,
+- data types,
+- outliers.
 
-- Google Cloud project setup
-- Google Cloud CLI
-- Application Default Credentials
-- Google Cloud Storage
-- Python `google-cloud-storage`
-- raw-data uploads
-- processed-data uploads
+Stable expectations were later converted into automated pytest checks.
 
-A possible future cloud architecture is:
+Current tests verify important conditions such as:
 
-```mermaid
-flowchart TD
-    A[cBioPortal] --> B[Cloud-hosted Python Ingestion]
-    B --> C[GCS Raw Storage]
-    C --> D[Cloud Processing]
-    D --> E[GCS Processed Storage]
-    E --> F[BigQuery]
-    F --> G[SQL Analytics]
-    G --> H[Verified Results]
-    H --> I[OpenAI]
-    I --> J[Deployed Application]
-```
-
-GCP is not required for V1.
-
-It can be introduced later if the project requires:
-
-- scheduled cloud execution
-- centralized storage
-- multiple users
-- production deployment
-- managed infrastructure
-- larger-scale data processing
+- expected table sizes,
+- unique patient IDs,
+- unique sample IDs,
+- patient/sample consistency,
+- completeness of critical mutation identifiers.
 
 ---
 
-## Architecture Decision
+## Why Local-First?
 
-The current V1 follows:
+Google Cloud Storage and BigQuery were explored during development.
+
+However, the final V1 architecture was intentionally changed to local-first.
+
+The current dataset contains approximately:
+
+- 1,084 patients,
+- 84,226 mutation records,
+- around 100 MB of raw data.
+
+This workload does not require distributed processing or a managed cloud warehouse.
+
+Using GCP as a mandatory component would introduce additional:
+
+- infrastructure,
+- authentication,
+- deployment,
+- and billing complexity
+
+without solving a current scale requirement.
+
+The architecture therefore follows:
 
 `Problem → Requirements → Architecture → Technology`
 
-The current dataset is approximately:
+rather than:
 
-- 100 MB of raw data
-- 1,084 patients
-- 84,226 mutation records
+`Technology → Find somewhere to use it`
 
-This scale does not require distributed processing or a managed cloud warehouse.
+---
 
-Therefore, BioData Copilot V1 uses a local-first architecture while keeping GCP as an optional future extension.
+## Optional Future Cloud Architecture
 
+If the project later requires:
+
+- scheduled execution,
+- centralized storage,
+- multiple users,
+- larger datasets,
+- production deployment,
+
+the architecture could evolve toward:
+
+```mermaid
+flowchart TD
+    A[cBioPortal] --> B[Cloud-hosted Ingestion]
+    B --> C[GCS Raw Storage]
+    C --> D[Cloud Processing]
+    D --> E[BigQuery]
+    E --> F[SQL Analytics]
+    F --> G[Verified Results]
+    G --> H[AI Explanation]
+    H --> I[Deployed Application]
+```
+
+GCP is therefore a possible future deployment architecture, not a requirement of V1.
+
+---
+
+## Architecture Summary
+
+```text
 cBioPortal
     ↓
 Python ingestion
     ↓
 Raw JSON
     ↓
-Validation + transformation
+Python / pandas transformation
     ↓
-Processed CSVs
+Processed analytical datasets
     ↓
-DuckDB ✅
+DuckDB
     ↓
-SQL analytical models ✅
+Reviewed SQL
     ↓
-Verified analytical results
+Verified result
     ↓
-OpenAI ⏳
+OpenAI explanation
     ↓
-User Interface ⏳
+Streamlit
+```
 
-# Current Next Step
-
-Define the small set of analytical questions that BioData Copilot V1 will officially support.
-
-The next phase will:
-
-1. select 3–5 useful biomedical questions,
-2. create reusable SQL queries for those questions,
-3. return deterministic structured results,
-4. pass only those verified results to the OpenAI explanation layer.
+The core engineering objective is to keep analytical facts reproducible while using AI only where natural-language interpretation adds value.

@@ -8,225 +8,265 @@
 
 ---
 
-## Selection Process
+## Why Dataset Selection Was Treated as a Separate Step
 
-The cBioPortal API returned approximately 550 public studies.
+The project did not start by assuming that breast cancer was the correct dataset.
 
-Rather than choosing a cancer type arbitrarily, the studies were grouped into broader cancer families using the cBioPortal cancer-type hierarchy.
+The cBioPortal API currently returns more than 550 public studies.
 
-Several high-coverage cancer families were identified, including:
+Rather than selecting a study based only on familiarity or sample size, the available studies were explored programmatically.
 
-- Lung
-- Breast
-- Bowel
-- Prostate
-- Pancreas
+The selection considered:
 
-Representative studies were then compared based on:
-
-- sample size
-- clinical attribute availability
-- molecular profile availability
-- survival information
-- study scope
-- degree of specialisation
-- suitability for a general biomedical data exploration project
+- study coverage,
+- cancer family,
+- sample size,
+- clinical attributes,
+- molecular profiles,
+- study specialization,
+- suitability for a general biomedical analytics project.
 
 ---
 
 ## Cancer-Family Grouping
 
-An important issue discovered during exploration was that related cancer types could appear under different identifiers.
+An early issue was that related cancer types can appear under different cBioPortal identifiers.
 
 For example:
 
 `brca → breast → tissue`
 
-Therefore, studies were grouped using the cancer-type parent hierarchy rather than relying only on raw cancer-type IDs.
+Therefore, the cancer-type hierarchy was followed to group specific cancer types into broader cancer families.
 
-This provided a more meaningful comparison of study availability across broader disease families.
+This provided a better view of the available study landscape than relying only on raw cancer-type IDs.
+
+Recent exploration identified high-coverage families including:
+
+- Lung
+- Breast
+- CNS / Brain
+- Prostate
+- Lymphoid
+- Bowel
+- Soft Tissue
+- Skin
+- Kidney
+- Pancreas
 
 ---
 
-# Candidate Studies Inspected
+## Candidate Comparison
 
-## Lung
+The broader shortlist included studies from:
+
+- Breast
+- Lung
+- Bowel
+- Prostate
+- Pancreas
+
+The most informative detailed comparison focused on three representative studies.
+
+---
+
+### Lung
 
 **Study ID:** `luad_mskcc_2023_met_organotropism`
 
-### Strengths
+Current metadata includes:
 
-The study contains rich clinical information including:
+- 91 clinical attributes,
+- 3 molecular profiles.
 
-- age
-- sex
-- race
-- stage
-- survival
-- treatment
-- mutation data
-- TMB
-- MSI
-- metastatic-site information
+The study contains detailed:
+
+- clinical information,
+- survival information,
+- treatment data,
+- mutation information,
+- metastatic-site information.
 
 ### Limitation
 
-The study is specifically focused on metastatic organotropism.
+The study is specifically designed around metastatic organotropism.
 
-Although it contains extensive clinical data, the specialised research focus makes it less suitable for a general-purpose biomedical exploration platform.
+This makes it scientifically useful but comparatively specialized for a general-purpose V1 biomedical analytics platform.
 
 ---
 
-## Pancreas
+### Pancreas
 
 **Study ID:** `pdac_msk_2024`
 
-### Strengths
+Current metadata includes:
 
-The study contains useful:
+- 52 clinical attributes,
+- 3 molecular profiles.
 
-- clinical information
-- survival information
-- treatment information
-- mutation data
-- TMB
-- MSI
+The study contains:
 
-It also contains extensive KRAS-related variables.
+- clinical information,
+- survival data,
+- treatment information,
+- mutation data,
+- TMB and MSI information,
+- extensive KRAS-related variables.
 
 ### Limitation
 
-Many of the available variables are centred around KRAS biology.
+The dataset is strongly centered on KRAS biology.
 
-This makes the dataset valuable for a focused pancreatic-cancer/KRAS analysis, but less suitable for a broader V1 platform.
+It is therefore better suited to a focused pancreatic-cancer/KRAS analysis than a broader first version of BioData Copilot.
 
 ---
 
-## Breast
+### Breast
 
 **Study ID:** `brca_tcga_pan_can_atlas_2018`
 
-### Strengths
+Current cBioPortal metadata includes:
 
-The study provides broad clinical information including:
+- 60 clinical attributes,
+- 17 molecular profiles.
 
-- age
-- sex
-- race
-- ethnicity
-- tumour stage
-- molecular subtype
-- survival outcomes
-- radiation therapy
-- mutation count
-- genomic summary variables
+Available information includes:
 
-It also provides multiple molecular profiles, including:
-
-- mutation data
-- copy-number alterations
-- mRNA expression
-- protein information
-- methylation
-- structural variants
+- demographics,
+- tumour stage,
+- molecular subtype,
+- survival,
+- radiation therapy,
+- mutations,
+- copy-number alterations,
+- mRNA expression,
+- methylation,
+- protein measurements,
+- structural variants.
 
 ### Limitation
 
-The study contains many molecular data types, which could make the project unnecessarily complex if all profiles were included at once.
+The study contains more molecular data than V1 needs.
 
-This was handled by limiting V1 to clinical and mutation data.
+Using every available profile would unnecessarily increase the project scope.
+
+The V1 scope was therefore restricted to:
+
+1. clinical data,
+2. mutation data.
 
 ---
 
-# Final Candidate Comparison
+## Final Candidate Comparison
 
-| Criterion | Lung MSK 2023 | Pancreas MSK 2024 | Breast TCGA PanCancer |
+| Criterion | Lung MSK | Pancreas MSK | Breast TCGA PanCancer |
 |---|---|---|---|
 | Study ID | `luad_mskcc_2023_met_organotropism` | `pdac_msk_2024` | `brca_tcga_pan_can_atlas_2018` |
-| Approx. sample size | 2,653 | 2,336 | 1,084 |
-| Clinical attributes | 91 | 52 | Broad clinical set |
+| Approx. samples | 2,653 | 2,336 | 1,084 |
+| Clinical attributes | 91 | 52 | 60 |
+| Molecular profiles | 3 | 3 | 17 |
 | Survival data | Yes | Yes | Yes |
-| Stage data | Yes | Yes | Yes |
-| Treatment data | Very detailed | Good | Available |
-| Metastasis data | Very detailed | Limited | General |
 | Mutation data | Yes | Yes | Yes |
 | Copy-number data | Yes | Yes | Yes |
 | Structural variants | Yes | Yes | Yes |
-| mRNA expression | Not observed during inspection | Not observed during inspection | Yes |
-| Protein data | Not observed during inspection | Not observed during inspection | Yes |
-| Methylation data | Not observed during inspection | Not observed during inspection | Yes |
-| Main study focus | Metastatic organotropism | KRAS biology | Broad breast-cancer molecular and clinical analysis |
-| Main limitation for V1 | Too specialised | Too KRAS-focused | Broader and more complex |
+| mRNA expression observed | No | No | Yes |
+| Protein data observed | No | No | Yes |
+| Methylation observed | No | No | Yes |
+| Main focus | Metastatic organotropism | KRAS biology | Broad clinical and molecular characterization |
+| V1 limitation | Too specialized | Too KRAS-focused | Broad but more complex |
 | Decision | Not selected | Not selected | **Selected** |
 
 ---
 
-# Decision
+## Final Decision
 
-The TCGA Breast Cancer PanCancer Atlas study was selected.
+The TCGA Breast Cancer PanCancer Atlas cohort was selected because it provides a broad combination of:
 
-Study ID:
+- clinical information,
+- demographic information,
+- tumour stage,
+- breast-cancer subtype,
+- survival,
+- mutation data,
+- and additional molecular profiles.
 
-`brca_tcga_pan_can_atlas_2018`
+The choice was not based on having the largest number of samples.
 
-The main reason was not simply sample size.
+Instead, the study offered the strongest balance between:
 
-The selected study provides a broad combination of:
-
-- clinical information
-- survival data
-- stage
-- subtype
-- demographic information
-- mutation data
-- additional molecular profiles
-
-This makes it more suitable for a general biomedical data exploration platform than the more specialised lung and pancreatic studies.
-
----
-
-# V1 Data Scope
-
-Although the selected study contains many molecular profiles, BioData Copilot V1 will initially use only:
-
-1. Clinical data
-2. Mutation data
-
-The project will not initially include:
-
-- mRNA expression analysis
-- methylation analysis
-- protein analysis
-- copy-number analysis
-- structural-variant analysis
-
-These may be added later if they support a clear analytical requirement.
+- breadth,
+- interpretability,
+- analytical flexibility,
+- and future extensibility.
 
 ---
 
-# Final Reasoning
+## V1 Data Scope
 
-The study-selection process followed this logic:
+BioData Copilot V1 uses:
+
+### Clinical Data
+
+Examples include:
+
+- age,
+- sex,
+- race,
+- ethnicity,
+- tumour stage,
+- subtype,
+- survival,
+- radiation therapy.
+
+### Mutation Data
+
+Examples include:
+
+- gene,
+- mutation type,
+- protein change,
+- genomic position,
+- allele information,
+- tumour and normal read counts.
+
+---
+
+## Deferred Molecular Data
+
+The selected study also contains additional profiles that are not part of V1:
+
+- mRNA expression,
+- methylation,
+- protein expression,
+- phosphoprotein data,
+- copy-number alterations,
+- structural variants.
+
+These remain possible future extensions if they support a clear analytical or research question.
+
+They were intentionally excluded from V1 to prevent unnecessary scope expansion.
+
+---
+
+## Selection Process Summary
 
 ```text
-~550 cBioPortal studies
+550+ public cBioPortal studies
         ↓
 Group studies by cancer family
         ↓
-Compare study coverage
+Compare coverage and study size
         ↓
-Shortlist representative studies
+Shortlist candidate studies
         ↓
 Compare clinical attributes
         ↓
 Compare molecular profiles
         ↓
-Inspect actual fields
+Inspect actual study scope
         ↓
-Evaluate study specialisation
+Evaluate specialization
         ↓
 Select TCGA Breast PanCancer Atlas
 ```
-The lung and pancreatic studies contained strong clinical and genomic data, but both were built around more specialised research questions.
-The Breast TCGA PanCancer Atlas cohort was selected because it offers broader clinical and molecular coverage and supports multiple future analytical directions.
-The V1 scope is intentionally limited to clinical and mutation data so the project remains manageable while preserving the possibility of expanding into additional molecular profiles later.
+
+The final selection therefore reflects a data-driven study-selection process rather than an arbitrary choice of disease area.

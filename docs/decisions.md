@@ -1,314 +1,380 @@
-# BioData Copilot — Decisions
+# BioData Copilot — Design Decisions
 
-## 1. Use `uv`
+This document records the main technical and architectural decisions behind BioData Copilot V1.
+
+The goal is to explain not only what technologies were used, but why they were appropriate for the problem.
+
+---
+
+## 1. Use cBioPortal as the biomedical data source
 
 ### Decision
 
-Use `uv` for Python project and dependency management.
+Use the cBioPortal REST API as the primary biomedical data source.
 
 ### Why
 
-It provides:
+cBioPortal provides:
 
-- dependency management
-- virtual environments
-- `pyproject.toml`
-- reproducible `uv.lock`
+- public cancer studies,
+- structured clinical data,
+- mutation data,
+- molecular profiles,
+- REST API access,
+- study metadata.
+
+It allows the project to work with real biomedical data without requiring access to private clinical records.
 
 ---
 
-## 2. Build locally before publishing to GitHub
+## 2. Select the dataset using data coverage rather than choosing a disease arbitrarily
 
 ### Decision
 
-Develop and test the project locally first.
+Explore available studies before selecting the final dataset.
 
 ### Why
 
-The project can be cleaned, tested, and documented before publication.
+The largest study is not necessarily the most suitable study.
 
-Git is still used locally for version control.
+Candidate studies were compared using:
 
----
+- sample size,
+- clinical attributes,
+- molecular profiles,
+- study scope,
+- degree of specialization.
 
-## 3. Keep Python simple first
-
-### Decision
-
-Prefer simple and explicit Python during the initial implementation.
-
-### Why
-
-The project is also being used to strengthen Python fundamentals.
-
-Development approach:
-
-Simple code  
-→ Understand it  
-→ Test it  
-→ Find repetition  
-→ Refactor later
-
----
-
-## 4. Use cBioPortal
-
-### Decision
-
-Use cBioPortal as the biomedical data source.
-
-### Why
-
-It provides:
-
-- public cancer studies
-- REST APIs
-- clinical data
-- genomic data
-- structured study metadata
-
----
-
-## 5. Do not choose a cancer type randomly
-
-### Decision
-
-Compare available studies before selecting the dataset.
-
-### Why
-
-The dataset should be chosen based on actual data coverage rather than personal preference.
-
----
-
-## 6. Group studies by cancer family
-
-### Problem
-
-Related cancer types appeared under different identifiers.
-
-Example:
-
-`brca → breast → tissue`
-
-### Decision
-
-Follow the cBioPortal cancer-type hierarchy to group specific cancer types into broader families.
-
----
-
-## 7. Do not select a study only by sample size
-
-### Why
-
-Large studies may be highly specialised.
-
-Examples inspected:
-
-- Lung MSK study — metastatic organotropism focus
-- Pancreas MSK study — KRAS-focused
-- Breast TCGA PanCancer Atlas — broad clinical and molecular coverage
-
----
-
-## 8. Selected dataset
-
-Study ID:
+The selected study was:
 
 `brca_tcga_pan_can_atlas_2018`
 
-### Why
-
-It provides broad:
-
-- demographic information
-- tumour stage
-- molecular subtype
-- survival data
-- mutation data
-- gene expression
-- copy-number information
-- methylation
-- protein information
-- structural variants
-
-This makes it suitable for a general biomedical data exploration platform.
+because it provides broad clinical and molecular coverage while still supporting a manageable V1 scope.
 
 ---
 
-## 9. Limit V1 data scope
+## 3. Limit V1 to clinical and mutation data
 
 ### Decision
 
-Initially use:
+Use only:
 
-1. Clinical data
-2. Mutation data
-
-### Why
-
-The selected study contains many additional molecular profiles, but using everything in V1 would unnecessarily increase project complexity.
-
----
-
-## 10. Separate facts from interpretation
-
-### Decision
-
-Use deterministic SQL/database operations to calculate numerical results.
-
-Use the LLM only to explain those verified results.
-
-### Rule
-
-Observed association does not automatically imply:
-
-- causation
-- diagnosis
-- prognosis
-- treatment recommendation
-
----
-
-## 11. Preserve raw source data
-
-### Decision
-
-Keep the original API responses before transformation.
+1. clinical data,
+2. mutation data.
 
 ### Why
 
-Raw data allows:
+The selected study also contains:
 
-- traceability
-- debugging
-- rebuilding processed datasets
-- checking whether transformation logic introduced errors
+- gene expression,
+- methylation,
+- protein data,
+- copy-number alterations,
+- structural variants.
+
+Including every available molecular profile would increase complexity without being necessary for the initial analytical questions.
+
+Additional molecular profiles should only be introduced when they support a clear analytical or research requirement.
 
 ---
 
-## 12. Use Python for structural biomedical-data preparation
+## 4. Preserve the original API responses
+
+### Decision
+
+Store raw API responses before transformation.
+
+### Why
+
+Raw data provides:
+
+- traceability,
+- reproducibility,
+- debugging capability,
+- the ability to rebuild processed datasets.
+
+Transformation errors can therefore be investigated against the original source.
+
+---
+
+## 5. Use Python for ingestion and structural transformation
 
 ### Decision
 
 Use Python and pandas for:
 
-- API ingestion
-- JSON handling
-- validation
-- profiling
-- long-to-wide transformation
-- nested mutation-data flattening
-- creation of processed analytical datasets
+- REST API ingestion,
+- JSON parsing,
+- long-to-wide transformation,
+- nested mutation-data flattening,
+- creation of processed analytical datasets.
 
 ### Why
 
-Python is well suited to working with nested API responses and biomedical data structures.
+The source data is semi-structured and contains nested JSON.
+
+Python provides a flexible way to prepare this data before analytical SQL is applied.
 
 ---
 
-## 13. Use SQL for analytical modeling
+## 6. Make table grain explicit before performing joins
 
 ### Decision
 
-After processed datasets are loaded into the analytical database, use SQL for:
+Define the grain of each analytical table.
 
-- joins
-- aggregations
-- mutation-frequency calculations
-- subtype summaries
-- patient-level analytical models
-- final application-facing results
+The main tables are:
+
+```text
+patient_analytics
+1 row = 1 patient
+
+sample_analytics
+1 row = 1 sample
+
+mutation_analytics
+1 row = 1 mutation record
+```
 
 ### Why
 
-This creates a clear separation between structural data preparation and analytical modeling.
+Different table grains can cause incorrect counts when data is joined.
+
+For example, one patient can have multiple mutation records.
+
+Therefore:
+
+`COUNT(*)`
+
+and:
+
+`COUNT(DISTINCT patientId)`
+
+can answer very different questions.
+
+Understanding grain is required before interpreting analytical results.
 
 ---
 
-## 14. Use a local-first architecture for V1
+## 7. Use DuckDB as the V1 analytical database
 
 ### Decision
 
-Use DuckDB as the analytical database for V1 instead of requiring BigQuery.
+Use DuckDB instead of a managed cloud warehouse.
 
 ### Why
 
-The current dataset is small:
+The current dataset contains approximately:
 
-- approximately 100 MB of raw data
-- 1,084 patients
-- 84,226 mutation records
+- 1,084 patients,
+- 84,226 mutation records,
+- around 100 MB of raw data.
 
-The dataset can comfortably be processed on a single machine.
+This workload fits comfortably on a single machine.
 
-Using a managed cloud warehouse would currently add infrastructure complexity without solving a real scale or collaboration problem.
+DuckDB provides:
+
+- analytical SQL,
+- joins,
+- aggregations,
+- CSV integration,
+- a lightweight local database,
+
+without requiring database-server or cloud infrastructure.
 
 ---
 
-## 15. Do not force GCP into the core architecture
+## 8. Use SQL for deterministic analytical calculations
 
 ### Decision
 
-GCP is treated as an explored deployment option rather than a required V1 component.
+Use reviewed SQL queries to calculate dataset-specific results.
+
+Examples include:
+
+- patient counts,
+- subtype distribution,
+- mutation prevalence,
+- gene frequency,
+- mutation burden,
+- data completeness.
 
 ### Why
 
-The initial pipeline performs ingestion and transformation locally.
+SQL makes analytical logic:
 
-Uploading already-processed local data to cloud services solely to demonstrate GCP would not materially improve the current project.
+- explicit,
+- reproducible,
+- reviewable,
+- independently verifiable.
 
-Technology should be selected because it solves a requirement, not simply because it is available.
+For the same input data and query, the database produces the same analytical result.
 
 ---
 
-## 16. Retain the GCP work as a Phase 2 option
+## 9. Use the LLM for explanation rather than numerical computation
 
-### Work Completed
+### Decision
 
-The project successfully tested:
+Calculate analytical results before sending information to the LLM.
 
-- Google Cloud CLI
-- Google Cloud project setup
-- Application Default Credentials
-- GCS raw bucket
-- GCS processed bucket
-- Python GCS uploads
-- raw and processed file storage
+The application flow is:
 
-### Future Use
+```text
+User Question
+      ↓
+Reviewed SQL
+      ↓
+DuckDB
+      ↓
+Verified Result
+      ↓
+OpenAI
+      ↓
+Natural-language Explanation
+```
 
-If BioData Copilot is deployed or scaled later, the architecture could evolve to:
+### Why
 
-cBioPortal  
-→ cloud-hosted ingestion  
-→ GCS  
-→ BigQuery  
-→ SQL analytics  
+Biomedical analysis can involve:
+
+- duplicate records,
+- different table grains,
+- missing values,
+- ambiguous denominators,
+- joins across multiple tables.
+
+These calculations are handled by explicit analytical logic rather than delegated entirely to the language model.
+
+The LLM is responsible for explaining the verified result clearly.
+
+---
+
+## 10. Use predefined analytical questions in V1
+
+### Decision
+
+Map each supported user question to a reviewed SQL query.
+
+### Why
+
+V1 prioritizes:
+
+- correctness,
+- reproducibility,
+- clear analytical scope.
+
+Unrestricted natural-language-to-SQL would introduce additional uncertainty and is not necessary for the initial version.
+
+It remains a possible future research direction.
+
+---
+
+## 11. Preserve missing values and investigate outliers before modifying them
+
+### Decision
+
+Do not automatically:
+
+- fill missing biomedical values,
+- remove unusual observations.
+
+### Why
+
+A missing value does not necessarily mean `False` or `0`.
+
+Similarly, an extreme value is not automatically an error.
+
+For example, very high mutation counts were accompanied by correspondingly high TMB values, so they were retained rather than automatically removed.
+
+---
+
+## 12. Convert stable data-quality expectations into automated tests
+
+### Decision
+
+Use pytest for stable pipeline checks instead of maintaining many one-off validation scripts.
+
+### Current Checks
+
+Tests currently verify:
+
+- expected table sizes,
+- patient ID uniqueness,
+- sample ID uniqueness,
+- patient/sample consistency,
+- completeness of critical mutation fields,
+- expected mutation patient/sample counts.
+
+### Why
+
+Exploratory profiling is useful while understanding a dataset.
+
+Once expectations become stable, automated pass/fail tests provide a cleaner and more maintainable implementation.
+
+---
+
+## 13. Keep V1 local-first
+
+### Decision
+
+Do not make cloud infrastructure mandatory for V1.
+
+### Why
+
+Google Cloud Storage and BigQuery were successfully explored during development.
+
+However, most ingestion and transformation already occur locally, and the current data volume does not require managed cloud infrastructure.
+
+Adding cloud services solely for portfolio breadth would increase complexity without solving a current engineering requirement.
+
+A future deployed version could use:
+
+```text
+cBioPortal
+→ Cloud-hosted ingestion
+→ GCS
+→ BigQuery
+→ SQL analytics
+→ AI explanation
 → deployed application
+```
+
+Cloud infrastructure remains an extension rather than a requirement.
 
 ---
 
-## 17. Use Application Default Credentials for local GCP experimentation
+## 14. Keep the UI intentionally lightweight
 
 ### Decision
 
-Use ADC instead of storing service-account keys inside the repository.
+Use Streamlit as a thin presentation layer.
 
 ### Why
 
-Google Cloud libraries can discover local credentials automatically without hardcoding secrets into the application.
+BioData Copilot is primarily a data and AI project rather than a frontend project.
+
+The UI only needs to allow users to:
+
+- select a supported analytical question,
+- view the verified SQL result,
+- view the AI explanation.
+
+This keeps development effort focused on the data pipeline, analytical logic, and trustworthy-AI design.
 
 ---
 
-## 18. Use `asia-south1` for GCP experimentation
+# Engineering Principle
 
-### Decision
+The main architectural principle behind BioData Copilot is:
 
-Cloud Storage resources created during the GCP exploration use:
+> **Choose technology because it solves a requirement, not because it looks impressive in the technology stack.**
 
-`asia-south1`
+The project therefore favors:
 
-### Why
-
-The resources were created for development from India and colocating related cloud services would simplify a future cloud architecture.
+- explicit data grain,
+- reproducible transformations,
+- reviewed SQL,
+- automated tests,
+- grounded AI explanations,
+- and a deliberately simple architecture.
